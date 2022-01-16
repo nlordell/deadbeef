@@ -46,7 +46,7 @@ impl Salt {
         nonce
     }
 
-    fn value(&self, output: &mut [u8]) {
+    fn write(&self, output: &mut [u8]) {
         let mut hasher = Keccak::v256();
         hasher.update(&self.0);
         hasher.finalize(output);
@@ -71,8 +71,8 @@ impl Create2 {
         factory
     }
 
-    fn salt(&mut self, salt: &Salt) {
-        salt.value(&mut self.0[21..][..32]);
+    fn salt_mut(&mut self) -> &mut [u8] {
+        &mut self.0[21..][..32]
     }
 
     fn creation_address(&self) -> [u8; 20] {
@@ -146,7 +146,7 @@ fn search_address(address: [u8; 20], prefix: &[u8], result: mpsc::Sender<VanityS
 
     while !create2.creation_address().starts_with(prefix) {
         rng.fill(salt.nonce_mut());
-        create2.salt(&salt);
+        salt.write(create2.salt_mut());
     }
 
     let calldata = {
@@ -185,7 +185,7 @@ mod tests {
         salt.nonce_mut().copy_from_slice(&hex!(
             "0000000000000000000000000000000000000000000000000000017e63b10d14"
         ));
-        create2.salt(&salt);
+        salt.write(create2.salt_mut());
 
         let address = create2.creation_address();
         assert_eq!(address, hex!("8c166d8d0d6d884e433196e06d44cca2be9a21c9"));
