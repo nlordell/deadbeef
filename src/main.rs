@@ -65,6 +65,12 @@ impl Create2 {
         ))
     }
 
+    fn factory(&self) -> [u8; 20] {
+        let mut factory = [0_u8; 20];
+        factory.copy_from_slice(&self.0[1..][..20]);
+        factory
+    }
+
     fn salt(&mut self, salt: &Salt) {
         salt.value(&mut self.0[21..][..32]);
     }
@@ -113,6 +119,7 @@ fn main() {
 
     let safe = receiver.recv().expect("missing result");
     println!("address:    0x{}", hex::encode(&safe.address));
+    println!("factory:    0x{}", hex::encode(&safe.factory));
     println!("salt_nonce: 0x{}", hex::encode(&safe.salt_nonce));
     println!("calldata:   0x{}", hex::encode(&safe.calldata));
 
@@ -126,6 +133,7 @@ fn strip_ox(s: &str) -> &str {
 
 struct VanitySafe {
     address: [u8; 20],
+    factory: [u8; 20],
     salt_nonce: [u8; 32],
     calldata: Vec<u8>,
 }
@@ -159,6 +167,7 @@ fn search_address(address: [u8; 20], prefix: &[u8], result: mpsc::Sender<VanityS
 
     let _ = result.send(VanitySafe {
         address: create2.creation_address(),
+        factory: create2.factory(),
         salt_nonce: salt.nonce(),
         calldata,
     });
