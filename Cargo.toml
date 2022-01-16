@@ -1,0 +1,11 @@
+[package]
+name = "deadbeef"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hex = "0.4"
+hex-literal = "0.3"
+num_cpus = "1"
+rand = "0.8"
+tiny-keccak = { version = "2", features = ["keccak"] }
