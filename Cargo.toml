@@ -2,6 +2,8 @@
 name = "deadbeef"
 version = "0.1.0"
 edition = "2021"
+publish = false
+license = "GPL-3.0-or-later"
 
 [dependencies]
 hex = "0.4"
