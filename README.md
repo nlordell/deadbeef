@@ -2,9 +2,10 @@
 
 Tool used for computing vanity Gnosis Safe addresses.
 
-This tool is quite limited in that it only supports the `v1.3.0` Safe deployment:
+This tool is quite limited in that it currently hard-coded to only support the `v1.3.0` Safe deployment:
 - `GnosisSafeProxyFactory` [`0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2`](https://etherscan.io/address/0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2)
 - `GnosisSafe` [`0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552`](https://etherscan.io/address/0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552)
+- `CompatibilityFallbackHandler` [`0xf48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4`](https://etherscan.io/address/0xf48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4)
 
 Since this version of the Safe proxy factory uses `CREATE2` op-code, we can change the final address by fiddling with the user-specified `saltNonce` parameter.
 It works by randomly trying out different values for the `saltNonce` parameter until it find ones that creates an address matching the desired prefix.
