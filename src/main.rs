@@ -68,8 +68,8 @@ fn main() {
     } else {
         println!("address:   {}", safe.creation_address);
         println!("factory:   {}", safe.factory);
-        println!("singleton: {}", safe.factory);
-        println!("fallback:  {}", safe.factory);
+        println!("singleton: {}", safe.singleton);
+        println!("fallback:  {}", safe.fallback_handler);
         println!("owners:    {}", safe.owners[0]);
         for owner in &safe.owners[1..] {
             println!("           {}", owner);
