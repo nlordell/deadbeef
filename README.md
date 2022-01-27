@@ -26,7 +26,10 @@ deadbeef --help
 For example, to generate calldata for creating a Safe with initial owners of `0x1111111111111111111111111111111111111111` and `0x2222222222222222222222222222222222222222` and prefix `0xdeadbeef`:
 
 ```
-deadbeef --owner 0x1111111111111111111111111111111111111111 --owner 0x2222222222222222222222222222222222222222 --prefix 0xdeadbeef
+deadbeef \
+  --owner 0x1111111111111111111111111111111111111111 \
+  --owner 0x2222222222222222222222222222222222222222 \
+  --prefix 0xdeadbeef
 ```
 
 Note that the owner signature threshold defaults to 1 but can optionally be specified with:
@@ -49,5 +52,5 @@ calldata:  0x1688f0b9000000000000000000000000d9db270c1b5e3bd161e8c8503c55ceabee7
 ## Creating the Safe
 
 The above command will generate some calldata for creating a Safe with the specified owners and threshold.
-To create the safe, simply execute a transaction to the factory address with the generated calldata.
+To create the safe, simply execute a transaction to the [factory address](https://etherscan.io/address/0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2) with the generated calldata.
 The transaction can be executed from any account (it can be done in MetaMask directly for example).
