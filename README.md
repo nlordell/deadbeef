@@ -61,13 +61,13 @@ Of course!
 No actual cows were harmed in the creation or continual use of this tool.
 
 ```
-% deadbeef \
+% alias deadbeef=seedfeed
+% seedfeed \
   --owner 0x1111111111111111111111111111111111111111 \
   --owner 0x2222222222222222222222222222222222222222 \
   --owner 0x3333333333333333333333333333333333333333 \
   --threshold 2 \
   --prefix 0x5eedfeed
-
 address:   0x5EedFeED446B211419EBac9253FbB8b9556781D1
 factory:   0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2
 singleton: 0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552
