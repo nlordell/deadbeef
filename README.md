@@ -1,10 +1,10 @@
 # `0xdeadbeef`
 
-Tool used for computing vanity Gnosis Safe addresses.
+Tool used for computing vanity Safe addresses.
 
 This tool is currently hard-coded to only support the [`v1.4.1`](https://github.com/safe-global/safe-deployments/tree/9cf5d5f75819371b7b63fcc66f316bcd920f3c58/src/assets/v1.4.1) Safe deployment:
 - `SafeProxyFactory` [`0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67`](https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67)
-- `GnosisSafe` [`0x41675C099F32341bf84BFc5382aF534df5C7461a`](https://etherscan.io/address/0x41675C099F32341bf84BFc5382aF534df5C7461a)
+- `Safe` [`0x41675C099F32341bf84BFc5382aF534df5C7461a`](https://etherscan.io/address/0x41675C099F32341bf84BFc5382aF534df5C7461a)
 - `CompatibilityFallbackHandler` [`0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99`](https://etherscan.io/address/0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99)
 
 Since this version of the Safe proxy factory uses `CREATE2` op-code, we can change the final address by fiddling with the user-specified `saltNonce` parameter.
