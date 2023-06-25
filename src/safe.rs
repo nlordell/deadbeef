@@ -7,11 +7,11 @@ use crate::{
 use hex_literal::hex;
 use tiny_keccak::{Hasher as _, Keccak};
 
-const PROXY_FACTORY: Address = address!("a6B71E26C5e0845f74c812102Ca7114b6a896AB2");
+const PROXY_FACTORY: Address = address!("4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67");
 const PROXY_INIT_CODE_DIGEST: [u8; 32] =
-    hex!("56e3081a3d1bb38ed4eed1a39f7729c3cc77c7825794c15bbf326f3047fd779c");
-const SINGLETON: Address = address!("d9Db270c1B5E3Bd161E8c8503c55cEABeE709552");
-const FALLBACK_HANDLER: Address = address!("f48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4");
+    hex!("76733d705f71b79841c0ee960a0ca880f779cde7ef446c989e6d23efc0a4adfb");
+const SINGLETON: Address = address!("41675C099F32341bf84BFc5382aF534df5C7461a");
+const FALLBACK_HANDLER: Address = address!("fd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99");
 
 /// Safe deployment for computing deterministic addresses.
 #[derive(Clone)]
@@ -219,8 +219,10 @@ mod tests {
 
     #[test]
     fn proxy_init_code_digest() {
-        // Taken by reading the `proxyCreationCode` from the proxy factory.
-        // <https://etherscan.io/address/0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2>
+        // Deployments resource: https://github.com/safe-global/safe-deployments/blob/f534dd74c90889cc0e1ad4bf349b4693a92e7daa/src/assets/v1.4.0/safe_proxy_factory.json
+        // gives the address:
+        // https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67 then read the
+        // `proxyCreationCode` from the proxy factory, which gives:
         const PROXY_INIT_CODE: &[u8] = &hex!(
             "608060405234801561001057600080fd5b506040516101e63803806101e68339
              818101604052602081101561003357600080fd5b810190808051906020019092
@@ -234,9 +236,9 @@ mod tests {
              ffffffffffffffffffffffffffffffffffffff600054167fa619486e00000000
              0000000000000000000000000000000000000000000000006000351415605057
              8060005260206000f35b3660008037600080366000845af43d6000803e600081
-             14156070573d6000fd5b3d6000f3fea2646970667358221220d1429297349653
-             a4918076d650332de1a1068c5f3e07c5c82360c277770b955264736f6c634300
-             07060033496e76616c69642073696e676c65746f6e2061646472657373207072
+             14156070573d6000fd5b3d6000f3fea264697066735822122003d1488ee65e08fa
+             41e58e888a9865554c535f2c77126a82cb4c0f917f31441364736f6c63430007
+             060033496e76616c69642073696e676c65746f6e2061646472657373207072
              6f7669646564"
         );
 
