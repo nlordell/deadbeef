@@ -9,28 +9,28 @@ use rand::{rngs::SmallRng, Rng as _, SeedableRng as _};
 use safe::Info;
 use std::{process, str::FromStr, sync::mpsc, thread};
 
-/// Generate vanity addresses for Gnosis Safe deployments.
+/// Generate vanity addresses for Safe deployments.
 #[derive(Clone, Parser)]
 struct Args {
     /// Safe owners.
     ///
     /// Can be specified multiple times in order to specify multiple owners.
     /// They will be included in the provided order.
-    #[clap(short, long = "owner", required = true, min_values = 1)]
+    #[arg(short, long = "owner", required = true, num_args = 1..)]
     owners: Vec<Address>,
 
     /// Owner signature threshold.
-    #[clap(short, long, default_value_t = 1)]
+    #[arg(short, long, default_value_t = 1)]
     threshold: usize,
 
     /// The prefix to look for.
-    #[clap(short, long)]
+    #[arg(short, long)]
     prefix: Hex,
 
     /// Quiet mode.
     ///
-    /// Only output the transaction calldata without any extra inforamtion.
-    #[clap(short, long)]
+    /// Only output the transaction calldata without any extra information.
+    #[arg(short, long)]
     quiet: bool,
 }
 

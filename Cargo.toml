@@ -6,9 +6,9 @@ publish = false
 license = "GPL-3.0-or-later"
 
 [dependencies]
-clap = { version = "3", features = ["derive"] }
+clap = { version = "4", features = ["derive"] }
 hex = "0.4"
-hex-literal = "0.3"
+hex-literal = "0.4"
 num_cpus = "1"
 rand = { version = "0.8", features = ["small_rng"] }
 tiny-keccak = { version = "2", features = ["keccak"] }
