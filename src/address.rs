@@ -39,7 +39,7 @@ impl Display for Address {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let mut buf = *b"0x0000000000000000000000000000000000000000";
         let addr = &mut buf[2..];
-        hex::encode_to_slice(&self.0, addr).expect("error decoding hex");
+        hex::encode_to_slice(self.0.as_slice(), addr).expect("error decoding hex");
 
         let digest = {
             let mut output = [0_u8; 32];

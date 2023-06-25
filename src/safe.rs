@@ -172,7 +172,7 @@ mod tests {
                  0000000000000000000000000000000000000000000000000000000000000002
                  0000000000000000000000000000000000000000000000000000000000000000
                  0000000000000000000000000000000000000000000000000000000000000180
-                 000000000000000000000000f48f2b2d2a534e402487b3ee7c18c33aec0fe5e4
+                 000000000000000000000000fd0732dc9e303f09fcef3a7388ad10a83459ec99
                  0000000000000000000000000000000000000000000000000000000000000000
                  0000000000000000000000000000000000000000000000000000000000000000
                  0000000000000000000000000000000000000000000000000000000000000000
@@ -187,42 +187,35 @@ mod tests {
 
     #[test]
     fn compute_address() {
-        let mut safe = Safe::new(
-            vec![address!("85108e6bEE0E6E4d317b72751365d5A5D2Ee66a5")],
-            1,
-        );
-        safe.update_salt_nonce(|n| n[26..].copy_from_slice(&hex!("017e63b10d14")));
-
-        let address = safe.creation_address();
-        assert_eq!(
-            address,
-            address!("8c166d8d0d6d884e433196e06d44cca2be9a21c9")
-        );
-
-        // <https://etherscan.io/tx/0x22b25b3937c680eacc31f876d101bba8feb549e087a36aaa097ac133d46369d0>
+        // <https://etherscan.io/tx/0xdac58edb65c2af3f86f03586eeec7caa7ee245d6d06679a913e5dda16617658e>
         let mut safe = Safe::new(
             vec![
-                address!("234ec257298586ad7242c1a74f57879c041140b7"),
-                address!("c409869444e8f42f3bca2cfd7e94b98f316de37b"),
-                address!("ce280ea3648d4027275d77abdfa7c704fe5199c5"),
+                address!("34f845773D4364999f2fbC7AA26ABDeE902cBb46"),
+                address!("E2Df39d8c1c393BDe653D96a09852508CA2816e5"),
+                address!("000000000dD7Bc0bcCE4392698dc3e11004F20eB"),
+                address!("Cbd6073f486714E6641bf87c22A9CEc25aCf5804"),
             ],
             2,
         );
-        safe.update_salt_nonce(|n| n[26..].copy_from_slice(&hex!("017e8fdcc023")));
+        safe.update_salt_nonce(|n| {
+            n.copy_from_slice(&hex!(
+                "c437564b491906978ae4396733fbc0835f87e6b2578193331caa87645ebe9bdc"
+            ))
+        });
 
         let address = safe.creation_address();
         assert_eq!(
             address,
-            address!("5bBB3663008714348e26487E5c11211C2585b8eC")
+            address!("000000000034065b3a94c2118cfe5b4c0067b615")
         );
     }
 
     #[test]
     fn proxy_init_code_digest() {
-        // Deployments resource: https://github.com/safe-global/safe-deployments/blob/f534dd74c90889cc0e1ad4bf349b4693a92e7daa/src/assets/v1.4.0/safe_proxy_factory.json
-        // gives the address:
-        // https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67 then read the
-        // `proxyCreationCode` from the proxy factory, which gives:
+        // Proxy factory address retrieved from the Safe deployments repository:
+        // <https://github.com/safe-global/safe-deployments/tree/main/src/assets/v1.4.1>
+        // The `proxyCreationCode` can be read from the from the proxy factory:
+        // <https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67>
         const PROXY_INIT_CODE: &[u8] = &hex!(
             "608060405234801561001057600080fd5b506040516101e63803806101e68339
              818101604052602081101561003357600080fd5b810190808051906020019092
@@ -236,9 +229,9 @@ mod tests {
              ffffffffffffffffffffffffffffffffffffff600054167fa619486e00000000
              0000000000000000000000000000000000000000000000006000351415605057
              8060005260206000f35b3660008037600080366000845af43d6000803e600081
-             14156070573d6000fd5b3d6000f3fea264697066735822122003d1488ee65e08fa
-             41e58e888a9865554c535f2c77126a82cb4c0f917f31441364736f6c63430007
-             060033496e76616c69642073696e676c65746f6e2061646472657373207072
+             14156070573d6000fd5b3d6000f3fea264697066735822122003d1488ee65e08
+             fa41e58e888a9865554c535f2c77126a82cb4c0f917f31441364736f6c634300
+             07060033496e76616c69642073696e676c65746f6e2061646472657373207072
              6f7669646564"
         );
 
