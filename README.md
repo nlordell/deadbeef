@@ -2,7 +2,8 @@
 
 Tool used for computing vanity Safe addresses.
 
-This tool is currently hard-coded to only support the [`v1.4.1`](https://github.com/safe-global/safe-deployments/tree/9cf5d5f75819371b7b63fcc66f316bcd920f3c58/src/assets/v1.4.1) Safe deployment:
+This tool only officially supports the latest Safe deployment [`v1.4.1`](https://github.com/safe-global/safe-deployments/tree/9cf5d5f75819371b7b63fcc66f316bcd920f3c58/src/assets/v1.4.1).
+For Ethereum:
 - `SafeProxyFactory` [`0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67`](https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67)
 - `Safe` [`0x41675C099F32341bf84BFc5382aF534df5C7461a`](https://etherscan.io/address/0x41675C099F32341bf84BFc5382aF534df5C7461a)
 - `CompatibilityFallbackHandler` [`0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99`](https://etherscan.io/address/0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99)
@@ -13,6 +14,7 @@ It works by randomly trying out different values for the `saltNonce` parameter u
 ## Building
 
 For longer prefixes, this can take a **very** long time, so be sure to build with release:
+
 ```
 cargo build --release
 ```
@@ -33,11 +35,13 @@ deadbeef \
 ```
 
 Note that the owner signature threshold defaults to 1 but can optionally be specified with:
+
 ```
 deadbeef ... --threshold 2 ...
 ```
 
 This will output some result like:
+
 ```
 address:   0xdEADBEefEAFbe3622E000Fda70bBF742dDDEbC71
 factory:   0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67
@@ -48,6 +52,34 @@ owners:    0x1111111111111111111111111111111111111111
 threshold: 1
 calldata:  0x1688f0b900000000000000000000000041675c099f32341bf84bfc5382af534df5c7461a0000000000000000000000000000000000000000000000000000000000000060e4cf27da52614adef0b22f15b975c956927faa0ab22fa1f1a82db0760a9ddddd0000000000000000000000000000000000000000000000000000000000000184b63e800d0000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000160000000000000000000000000fd0732dc9e303f09fcef3a7388ad10a83459ec99000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000011111111111111111111111111111111111111110000000000000000000000002222222222222222222222222222222222222222000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 ```
+
+For using Safe deployments on different chains can also be used:
+
+```
+deadbeef ... --chain 100 ...
+```
+
+As well as custom fallback handlers:
+
+```
+deadbeef ... --fallback-handler 0x4e305935b14627eA57CBDbCfF57e81fd9F240403 ...
+```
+
+## Unsupported Chains
+
+Safe deployments on non-officially supported networks can also be used by overriding all contract addresses and the proxy init code:
+
+```
+deadbeef ... \
+  --chain $UNSUPPORTED_CHAIN \
+  --proxy-factory 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  --proxy-init-code 0xbb \
+  --singleton 0xcccccccccccccccccccccccccccccccccccccccc \
+  --fallback-handler 0xdddddddddddddddddddddddddddddddddddddddd
+```
+
+**Use this with caution**, this assumes that the proxy address is computed in the exact same was as on Ethereum, which may not be the case for all networks.
+This feature is not officially supported by the tool.
 
 ## Creating the Safe
 

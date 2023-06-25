@@ -11,14 +11,14 @@ impl Create2 {
     /// Creates a new instance with the specified parameters.
     pub fn new(factory: Address, salt: [u8; 32], init_code: [u8; 32]) -> Self {
         let mut create2 = Self([0xff_u8; 85]);
-        create2.factory_mut().copy_from_slice(&factory.0);
-        create2.salt_mut().copy_from_slice(&salt);
-        create2.init_code_mut().copy_from_slice(&init_code);
+        *create2.factory_mut() = factory;
+        *create2.salt_mut() = salt;
+        *create2.init_code_mut() = init_code;
         create2
     }
 
     /// Returns the slice representing the factory.
-    pub fn factory_mut(&mut self) -> &mut [u8; 20] {
+    pub fn factory_mut(&mut self) -> &mut Address {
         unsafe { &mut *self.0.get_unchecked_mut(1..21).as_mut_ptr().cast() }
     }
 
@@ -59,7 +59,7 @@ mod tests {
                 hex!("96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f")
             )
             .creation_address(),
-            address!("3e8468f66d30fc99f745481d4b383f89861702c6"),
+            address!("3e8468f66d30Fc99F745481d4B383f89861702C6"),
         );
     }
 }

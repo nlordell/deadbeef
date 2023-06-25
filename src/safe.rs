@@ -1,25 +1,30 @@
 //! Module containing Safe
 
-use crate::{
-    address::{address, Address},
-    create2::Create2,
-};
+use crate::{address::Address, create2::Create2};
 use hex_literal::hex;
 use tiny_keccak::{Hasher as _, Keccak};
-
-const PROXY_FACTORY: Address = address!("4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67");
-const PROXY_INIT_CODE_DIGEST: [u8; 32] =
-    hex!("76733d705f71b79841c0ee960a0ca880f779cde7ef446c989e6d23efc0a4adfb");
-const SINGLETON: Address = address!("41675C099F32341bf84BFc5382aF534df5C7461a");
-const FALLBACK_HANDLER: Address = address!("fd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99");
 
 /// Safe deployment for computing deterministic addresses.
 #[derive(Clone)]
 pub struct Safe {
+    contracts: Contracts,
     owners: Vec<Address>,
     threshold: usize,
     salt: [u8; 64],
     create2: Create2,
+}
+
+/// Safe contract data on a given chain.
+#[derive(Clone)]
+pub struct Contracts {
+    /// The address of the `SafeProxyFactory` contract.
+    pub proxy_factory: Address,
+    /// The `SafeProxy` init code.
+    pub proxy_init_code: Vec<u8>,
+    /// The `Safe` singleton address.
+    pub singleton: Address,
+    /// The default `CompatabilityFallbackHandler` address to use.
+    pub fallback_handler: Address,
 }
 
 /// Safe deployment transaction information.
@@ -42,18 +47,19 @@ pub struct Info {
 
 impl Safe {
     /// Creates a new safe from deployment parameters.
-    pub fn new(owners: Vec<Address>, threshold: usize) -> Self {
+    pub fn new(contracts: Contracts, owners: Vec<Address>, threshold: usize) -> Self {
         let mut salt = [0_u8; 64];
         let mut hasher = Keccak::v256();
-        hasher.update(&initializer(&owners, threshold));
+        hasher.update(&contracts.initializer(&owners, threshold));
         hasher.finalize(&mut salt[0..32]);
 
-        let mut create2 = Create2::new(PROXY_FACTORY, Default::default(), PROXY_INIT_CODE_DIGEST);
+        let mut create2 = contracts.create2();
         let mut hasher = Keccak::v256();
         hasher.update(&salt);
         hasher.finalize(create2.salt_mut());
 
         Self {
+            contracts,
             owners,
             threshold,
             salt,
@@ -83,16 +89,82 @@ impl Safe {
 
     /// Returns the transaction information for the current safe deployment.
     pub fn info(self) -> Info {
-        let calldata = proxy_calldata(&self.owners, self.threshold, self.salt_nonce());
+        let calldata =
+            self.contracts
+                .proxy_calldata(&self.owners, self.threshold, self.salt_nonce());
         Info {
             creation_address: self.creation_address(),
-            factory: PROXY_FACTORY,
-            singleton: SINGLETON,
+            factory: self.contracts.proxy_factory,
+            singleton: self.contracts.singleton,
             owners: self.owners,
             threshold: self.threshold,
-            fallback_handler: FALLBACK_HANDLER,
+            fallback_handler: self.contracts.fallback_handler,
             calldata,
         }
+    }
+}
+
+impl Contracts {
+    /// Returns the proxy init code digest.
+    fn proxy_init_code_digest(&self) -> [u8; 32] {
+        let mut output = [0_u8; 32];
+        let mut hasher = Keccak::v256();
+        hasher.update(&self.proxy_init_code);
+        hasher.update(&abi::addr(self.singleton));
+        hasher.finalize(&mut output);
+        output
+    }
+
+    /// Returns the [`Create2`] instance associated with these contracts.
+    fn create2(&self) -> Create2 {
+        Create2::new(
+            self.proxy_factory,
+            Default::default(),
+            self.proxy_init_code_digest(),
+        )
+    }
+
+    /// Computes the initializer calldata for the specified Safe parameters.
+    fn initializer(&self, owners: &[Address], threshold: usize) -> Vec<u8> {
+        use abi::*;
+
+        let mut buffer = Vec::new();
+        buffer.extend_from_slice(&hex!("b63e800d"));
+        buffer.extend_from_slice(&num(0x100)); // owners.offset
+        buffer.extend_from_slice(&num(threshold));
+        buffer.extend_from_slice(&addr(Address::zero())); // to
+        buffer.extend_from_slice(&num(0x120 + 0x20 * owners.len())); // data.offset
+        buffer.extend_from_slice(&addr(self.fallback_handler));
+        buffer.extend_from_slice(&addr(Address::zero())); // paymentToken
+        buffer.extend_from_slice(&num(0)); // payment
+        buffer.extend_from_slice(&addr(Address::zero())); // paymentReceiver
+        buffer.extend_from_slice(&num(owners.len())); // owners.length
+        for owner in owners {
+            buffer.extend_from_slice(&addr(*owner)); // owners.length
+        }
+        buffer.extend_from_slice(&num(0)); // data.length
+        buffer
+    }
+
+    /// Returns the calldata required for the transaction to deploy the proxy.
+    fn proxy_calldata(
+        &self,
+        owners: &[Address],
+        threshold: usize,
+        salt_nonce: [u8; 32],
+    ) -> Vec<u8> {
+        use abi::*;
+
+        let initializer = self.initializer(owners, threshold);
+        let mut buffer = Vec::new();
+        buffer.extend_from_slice(&hex!("1688f0b9"));
+        buffer.extend_from_slice(&addr(self.singleton));
+        buffer.extend_from_slice(&num(0x60)); // initializer.offset
+        buffer.extend_from_slice(&salt_nonce);
+        buffer.extend_from_slice(&num(initializer.len()));
+        buffer.extend_from_slice(&initializer);
+        buffer.extend_from_slice(&[0_u8; 28]); // padding
+        buffer
     }
 }
 
@@ -113,52 +185,15 @@ mod abi {
     }
 }
 
-/// Computes the initializer calldata for the specified Safe parameters.
-fn initializer(owners: &[Address], threshold: usize) -> Vec<u8> {
-    use abi::*;
-
-    let mut buffer = Vec::new();
-    buffer.extend_from_slice(&hex!("b63e800d"));
-    buffer.extend_from_slice(&num(0x100)); // owners.offset
-    buffer.extend_from_slice(&num(threshold));
-    buffer.extend_from_slice(&addr(Address::zero())); // to
-    buffer.extend_from_slice(&num(0x120 + 0x20 * owners.len())); // data.offset
-    buffer.extend_from_slice(&addr(FALLBACK_HANDLER));
-    buffer.extend_from_slice(&addr(Address::zero())); // paymentToken
-    buffer.extend_from_slice(&num(0)); // payment
-    buffer.extend_from_slice(&addr(Address::zero())); // paymentReceiver
-    buffer.extend_from_slice(&num(owners.len())); // owners.length
-    for owner in owners {
-        buffer.extend_from_slice(&addr(*owner)); // owners.length
-    }
-    buffer.extend_from_slice(&num(0)); // data.length
-    buffer
-}
-
-/// Returns the calldata required for the transaction to deploy the proxy.
-fn proxy_calldata(owners: &[Address], threshold: usize, salt_nonce: [u8; 32]) -> Vec<u8> {
-    use abi::*;
-
-    let initializer = initializer(owners, threshold);
-    let mut buffer = Vec::new();
-    buffer.extend_from_slice(&hex!("1688f0b9"));
-    buffer.extend_from_slice(&addr(SINGLETON));
-    buffer.extend_from_slice(&num(0x60)); // initializer.offset
-    buffer.extend_from_slice(&salt_nonce);
-    buffer.extend_from_slice(&num(initializer.len()));
-    buffer.extend_from_slice(&initializer);
-    buffer.extend_from_slice(&[0_u8; 28]); // padding
-    buffer
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{address::address, chain::Chain};
 
     #[test]
     fn initializer_bytes() {
         assert_eq!(
-            &initializer(
+            &Chain::ethereum().contracts().unwrap().initializer(
                 &[
                     address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                     address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
@@ -186,9 +221,21 @@ mod tests {
     }
 
     #[test]
+    fn proxy_init_code_digest() {
+        assert_eq!(
+            Chain::default()
+                .contracts()
+                .unwrap()
+                .proxy_init_code_digest(),
+            hex!("76733d705f71b79841c0ee960a0ca880f779cde7ef446c989e6d23efc0a4adfb"),
+        );
+    }
+
+    #[test]
     fn compute_address() {
         // <https://etherscan.io/tx/0xdac58edb65c2af3f86f03586eeec7caa7ee245d6d06679a913e5dda16617658e>
         let mut safe = Safe::new(
+            Chain::ethereum().contracts().unwrap(),
             vec![
                 address!("34f845773D4364999f2fbC7AA26ABDeE902cBb46"),
                 address!("E2Df39d8c1c393BDe653D96a09852508CA2816e5"),
@@ -206,41 +253,7 @@ mod tests {
         let address = safe.creation_address();
         assert_eq!(
             address,
-            address!("000000000034065b3a94c2118cfe5b4c0067b615")
+            address!("000000000034065b3a94C2118CFe5B4C0067B615")
         );
-    }
-
-    #[test]
-    fn proxy_init_code_digest() {
-        // Proxy factory address retrieved from the Safe deployments repository:
-        // <https://github.com/safe-global/safe-deployments/tree/main/src/assets/v1.4.1>
-        // The `proxyCreationCode` can be read from the from the proxy factory:
-        // <https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67>
-        const PROXY_INIT_CODE: &[u8] = &hex!(
-            "608060405234801561001057600080fd5b506040516101e63803806101e68339
-             818101604052602081101561003357600080fd5b810190808051906020019092
-             9190505050600073ffffffffffffffffffffffffffffffffffffffff168173ff
-             ffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c3
-             79a0000000000000000000000000000000000000000000000000000000008152
-             6004018080602001828103825260228152602001806101c46022913960400191
-             505060405180910390fd5b806000806101000a81548173ffffffffffffffffff
-             ffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffff
-             ffffffffff1602179055505060ab806101196000396000f3fe608060405273ff
-             ffffffffffffffffffffffffffffffffffffff600054167fa619486e00000000
-             0000000000000000000000000000000000000000000000006000351415605057
-             8060005260206000f35b3660008037600080366000845af43d6000803e600081
-             14156070573d6000fd5b3d6000f3fea264697066735822122003d1488ee65e08
-             fa41e58e888a9865554c535f2c77126a82cb4c0f917f31441364736f6c634300
-             07060033496e76616c69642073696e676c65746f6e2061646472657373207072
-             6f7669646564"
-        );
-
-        let mut output = [0_u8; 32];
-        let mut hasher = Keccak::v256();
-        hasher.update(PROXY_INIT_CODE);
-        hasher.update(&abi::addr(SINGLETON));
-        hasher.finalize(&mut output);
-
-        assert_eq!(output, PROXY_INIT_CODE_DIGEST);
     }
 }
