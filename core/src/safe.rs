@@ -28,7 +28,8 @@ pub struct Contracts {
 }
 
 /// Safe deployment transaction information.
-pub struct Info {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Transaction {
     /// The final address that the safe will end up on.
     pub creation_address: Address,
     /// The address of the proxy factory for deploying the Safe.
@@ -53,7 +54,11 @@ impl Safe {
         hasher.update(&contracts.initializer(&owners, threshold));
         hasher.finalize(&mut salt[0..32]);
 
-        let mut create2 = contracts.create2();
+        let mut create2 = Create2::new(
+            contracts.proxy_factory,
+            Default::default(),
+            contracts.proxy_init_code_digest(),
+        );
         let mut hasher = Keccak::v256();
         hasher.update(&salt);
         hasher.finalize(create2.salt_mut());
@@ -88,11 +93,11 @@ impl Safe {
     }
 
     /// Returns the transaction information for the current safe deployment.
-    pub fn info(self) -> Info {
+    pub fn transaction(self) -> Transaction {
         let calldata =
             self.contracts
                 .proxy_calldata(&self.owners, self.threshold, self.salt_nonce());
-        Info {
+        Transaction {
             creation_address: self.creation_address(),
             factory: self.contracts.proxy_factory,
             singleton: self.contracts.singleton,
@@ -106,7 +111,7 @@ impl Safe {
 
 impl Contracts {
     /// Returns the proxy init code digest.
-    fn proxy_init_code_digest(&self) -> [u8; 32] {
+    pub fn proxy_init_code_digest(&self) -> [u8; 32] {
         let mut output = [0_u8; 32];
         let mut hasher = Keccak::v256();
         hasher.update(&self.proxy_init_code);
@@ -115,17 +120,8 @@ impl Contracts {
         output
     }
 
-    /// Returns the [`Create2`] instance associated with these contracts.
-    fn create2(&self) -> Create2 {
-        Create2::new(
-            self.proxy_factory,
-            Default::default(),
-            self.proxy_init_code_digest(),
-        )
-    }
-
     /// Computes the initializer calldata for the specified Safe parameters.
-    fn initializer(&self, owners: &[Address], threshold: usize) -> Vec<u8> {
+    pub fn initializer(&self, owners: &[Address], threshold: usize) -> Vec<u8> {
         use abi::*;
 
         let mut buffer = Vec::new();
@@ -147,7 +143,7 @@ impl Contracts {
     }
 
     /// Returns the calldata required for the transaction to deploy the proxy.
-    fn proxy_calldata(
+    pub fn proxy_calldata(
         &self,
         owners: &[Address],
         threshold: usize,
@@ -188,12 +184,18 @@ mod abi {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{address::address, chain::Chain};
 
     #[test]
     fn initializer_bytes() {
+        let contracts = Contracts {
+            proxy_factory: address!("1111111111111111111111111111111111111111"),
+            proxy_init_code: vec![],
+            singleton: address!("2222222222222222222222222222222222222222"),
+            fallback_handler: address!("3333333333333333333333333333333333333333"),
+        };
+
         assert_eq!(
-            &Chain::ethereum().contracts().unwrap().initializer(
+            &contracts.initializer(
                 &[
                     address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                     address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
@@ -207,7 +209,7 @@ mod tests {
                  0000000000000000000000000000000000000000000000000000000000000002
                  0000000000000000000000000000000000000000000000000000000000000000
                  0000000000000000000000000000000000000000000000000000000000000180
-                 000000000000000000000000fd0732dc9e303f09fcef3a7388ad10a83459ec99
+                 0000000000000000000000003333333333333333333333333333333333333333
                  0000000000000000000000000000000000000000000000000000000000000000
                  0000000000000000000000000000000000000000000000000000000000000000
                  0000000000000000000000000000000000000000000000000000000000000000
@@ -221,39 +223,59 @@ mod tests {
     }
 
     #[test]
-    fn proxy_init_code_digest() {
-        assert_eq!(
-            Chain::default()
-                .contracts()
-                .unwrap()
-                .proxy_init_code_digest(),
-            hex!("76733d705f71b79841c0ee960a0ca880f779cde7ef446c989e6d23efc0a4adfb"),
-        );
-    }
-
-    #[test]
-    fn compute_address() {
-        // <https://etherscan.io/tx/0xdac58edb65c2af3f86f03586eeec7caa7ee245d6d06679a913e5dda16617658e>
+    fn transaction() {
         let mut safe = Safe::new(
-            Chain::ethereum().contracts().unwrap(),
+            Contracts {
+                proxy_factory: address!("1111111111111111111111111111111111111111"),
+                proxy_init_code: vec![],
+                singleton: address!("2222222222222222222222222222222222222222"),
+                fallback_handler: address!("3333333333333333333333333333333333333333"),
+            },
             vec![
-                address!("34f845773D4364999f2fbC7AA26ABDeE902cBb46"),
-                address!("E2Df39d8c1c393BDe653D96a09852508CA2816e5"),
-                address!("000000000dD7Bc0bcCE4392698dc3e11004F20eB"),
-                address!("Cbd6073f486714E6641bf87c22A9CEc25aCf5804"),
+                address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+                address!("cccccccccccccccccccccccccccccccccccccccc"),
             ],
             2,
         );
-        safe.update_salt_nonce(|n| {
-            n.copy_from_slice(&hex!(
-                "c437564b491906978ae4396733fbc0835f87e6b2578193331caa87645ebe9bdc"
-            ))
-        });
+        safe.update_salt_nonce(|nonce| nonce.fill(0xee));
 
-        let address = safe.creation_address();
         assert_eq!(
-            address,
-            address!("000000000034065b3a94C2118CFe5B4C0067B615")
+            safe.transaction(),
+            Transaction {
+                creation_address: address!("cDa7814460beF6D0BF5dc1b34AB29605b36c3bC4"),
+                factory: address!("1111111111111111111111111111111111111111"),
+                singleton: address!("2222222222222222222222222222222222222222"),
+                owners: vec![
+                    address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                    address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+                    address!("cccccccccccccccccccccccccccccccccccccccc"),
+                ],
+                threshold: 2,
+                fallback_handler: address!("3333333333333333333333333333333333333333"),
+                calldata: hex!(
+                    "1688f0b9
+                    0000000000000000000000002222222222222222222222222222222222222222
+                    0000000000000000000000000000000000000000000000000000000000000060
+                    eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+                    00000000000000000000000000000000000000000000000000000000000001a4
+                    b63e800d00000000000000000000000000000000000000000000000000000000
+                    0000010000000000000000000000000000000000000000000000000000000000
+                    0000000200000000000000000000000000000000000000000000000000000000
+                    0000000000000000000000000000000000000000000000000000000000000000
+                    0000018000000000000000000000000033333333333333333333333333333333
+                    3333333300000000000000000000000000000000000000000000000000000000
+                    0000000000000000000000000000000000000000000000000000000000000000
+                    0000000000000000000000000000000000000000000000000000000000000000
+                    0000000000000000000000000000000000000000000000000000000000000000
+                    00000003000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                    aaaaaaaa000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+                    bbbbbbbb000000000000000000000000cccccccccccccccccccccccccccccccc
+                    cccccccc00000000000000000000000000000000000000000000000000000000
+                    0000000000000000000000000000000000000000000000000000000000000000"
+                )
+                .to_vec(),
+            }
         );
     }
 }

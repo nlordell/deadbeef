@@ -1,7 +1,6 @@
 //! Module for chain-specific data.
 
-use crate::{address::address, safe::Contracts};
-use hex_literal::hex;
+use deadbeef_core::{address, hex, Contracts};
 use std::{
     fmt::{self, Display, Formatter},
     num::ParseIntError,
@@ -78,5 +77,48 @@ impl FromStr for Chain {
         let value = u128::from_str_radix(s, radix)?;
 
         Ok(Self(value))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use deadbeef_core::Safe;
+
+    #[test]
+    fn proxy_init_code_digest() {
+        assert_eq!(
+            Chain::default()
+                .contracts()
+                .unwrap()
+                .proxy_init_code_digest(),
+            hex!("76733d705f71b79841c0ee960a0ca880f779cde7ef446c989e6d23efc0a4adfb"),
+        );
+    }
+
+    #[test]
+    fn compute_address() {
+        // <https://etherscan.io/tx/0xdac58edb65c2af3f86f03586eeec7caa7ee245d6d06679a913e5dda16617658e>
+        let mut safe = Safe::new(
+            Chain::ethereum().contracts().unwrap(),
+            vec![
+                address!("34f845773D4364999f2fbC7AA26ABDeE902cBb46"),
+                address!("E2Df39d8c1c393BDe653D96a09852508CA2816e5"),
+                address!("000000000dD7Bc0bcCE4392698dc3e11004F20eB"),
+                address!("Cbd6073f486714E6641bf87c22A9CEc25aCf5804"),
+            ],
+            2,
+        );
+        safe.update_salt_nonce(|n| {
+            n.copy_from_slice(&hex!(
+                "c437564b491906978ae4396733fbc0835f87e6b2578193331caa87645ebe9bdc"
+            ))
+        });
+
+        let address = safe.creation_address();
+        assert_eq!(
+            address,
+            address!("000000000034065b3a94C2118CFe5B4C0067B615")
+        );
     }
 }
