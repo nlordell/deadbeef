@@ -1,1 +1,3 @@
 /target
+/wasm/dist
+/wasm/lib/pkg

@@ -1,0 +1,18 @@
+[package]
+name = "deadbeef-wasm"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "GPL-3.0-or-later"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+deadbeef-core = { version = "0.1.0", path = "../core" }
+getrandom = { version = "0.2", features = ["js"] }
+hex = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.5"
+wasm-bindgen = "0.2"
+wee_alloc = "0.4"

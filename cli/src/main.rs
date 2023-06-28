@@ -95,11 +95,11 @@ fn main() {
     let threads = (0..num_cpus::get())
         .map(|_| {
             thread::spawn({
-                let safe = Safe::new(contracts.clone(), args.owners.clone(), args.threshold);
+                let mut safe = Safe::new(contracts.clone(), args.owners.clone(), args.threshold);
                 let prefix = args.prefix.0.clone();
                 let result = sender.clone();
                 move || {
-                    let safe = deadbeef_core::search(safe, &prefix);
+                    deadbeef_core::search(&mut safe, &prefix);
                     let _ = result.send(safe);
                 }
             })
@@ -107,20 +107,21 @@ fn main() {
         .collect::<Vec<_>>();
 
     let safe = receiver.recv().expect("missing result");
+    let transaction = safe.transaction();
 
     if args.quiet {
-        println!("0x{}", hex::encode(&safe.calldata));
+        println!("0x{}", hex::encode(&transaction.calldata));
     } else {
-        println!("address:   {}", safe.creation_address);
-        println!("factory:   {}", safe.factory);
-        println!("singleton: {}", safe.singleton);
-        println!("fallback:  {}", safe.fallback_handler);
-        println!("owners:    {}", safe.owners[0]);
-        for owner in &safe.owners[1..] {
+        println!("address:   {}", safe.creation_address());
+        println!("factory:   {}", contracts.proxy_factory);
+        println!("singleton: {}", contracts.singleton);
+        println!("fallback:  {}", contracts.fallback_handler);
+        println!("owners:    {}", args.owners[0]);
+        for owner in &args.owners[1..] {
             println!("           {}", owner);
         }
-        println!("threshold: {}", safe.threshold);
-        println!("calldata:  0x{}", hex::encode(&safe.calldata));
+        println!("threshold: {}", args.threshold);
+        println!("calldata:  0x{}", hex::encode(&transaction.calldata));
     }
 
     let _ = threads;
