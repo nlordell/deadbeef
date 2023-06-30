@@ -1,0 +1,15 @@
+{
+  "name": "deadbeef",
+  "version": "0.1.0",
+  "description": "compute vanity Safe addresses",
+  "keywords": ["wasm", "safe", "multisig", "vanity", "address"],
+  "homepage": "https://github.com/nlordell/deadbeef/tree/main/wasm",
+  "license": "GPL-3.0-or-later",
+  "files": ["dist/", "lib/"],
+  "main": "dist/index.js",
+  "browser": "dist/index.js",
+  "module": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "repository": "github:nlordell/deadbeef",
+  "author": "Nicholas Rodrigues Lordello"
+}

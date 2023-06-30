@@ -30,18 +30,8 @@ pub struct Contracts {
 /// Safe deployment transaction information.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Transaction {
-    /// The final address that the safe will end up on.
-    pub creation_address: Address,
-    /// The address of the proxy factory for deploying the Safe.
-    pub factory: Address,
-    /// The address of the Safe singleton contract.
-    pub singleton: Address,
-    /// The owners of the safe.
-    pub owners: Vec<Address>,
-    /// The signature threshold to use with the safe.
-    pub threshold: usize,
-    /// The address of the fallback handler that the safe was initialized with.
-    pub fallback_handler: Address,
+    /// The `to` address for the Ethereum transaction.
+    pub to: Address,
     /// The calldata to send to the proxy factory to create this Safe.
     pub calldata: Vec<u8>,
 }
@@ -93,17 +83,12 @@ impl Safe {
     }
 
     /// Returns the transaction information for the current safe deployment.
-    pub fn transaction(self) -> Transaction {
+    pub fn transaction(&self) -> Transaction {
         let calldata =
             self.contracts
                 .proxy_calldata(&self.owners, self.threshold, self.salt_nonce());
         Transaction {
-            creation_address: self.creation_address(),
-            factory: self.contracts.proxy_factory,
-            singleton: self.contracts.singleton,
-            owners: self.owners,
-            threshold: self.threshold,
-            fallback_handler: self.contracts.fallback_handler,
+            to: self.contracts.proxy_factory,
             calldata,
         }
     }
@@ -243,36 +228,27 @@ mod tests {
         assert_eq!(
             safe.transaction(),
             Transaction {
-                creation_address: address!("cDa7814460beF6D0BF5dc1b34AB29605b36c3bC4"),
-                factory: address!("1111111111111111111111111111111111111111"),
-                singleton: address!("2222222222222222222222222222222222222222"),
-                owners: vec![
-                    address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-                    address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
-                    address!("cccccccccccccccccccccccccccccccccccccccc"),
-                ],
-                threshold: 2,
-                fallback_handler: address!("3333333333333333333333333333333333333333"),
+                to: address!("1111111111111111111111111111111111111111"),
                 calldata: hex!(
                     "1688f0b9
-                    0000000000000000000000002222222222222222222222222222222222222222
-                    0000000000000000000000000000000000000000000000000000000000000060
-                    eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-                    00000000000000000000000000000000000000000000000000000000000001a4
-                    b63e800d00000000000000000000000000000000000000000000000000000000
-                    0000010000000000000000000000000000000000000000000000000000000000
-                    0000000200000000000000000000000000000000000000000000000000000000
-                    0000000000000000000000000000000000000000000000000000000000000000
-                    0000018000000000000000000000000033333333333333333333333333333333
-                    3333333300000000000000000000000000000000000000000000000000000000
-                    0000000000000000000000000000000000000000000000000000000000000000
-                    0000000000000000000000000000000000000000000000000000000000000000
-                    0000000000000000000000000000000000000000000000000000000000000000
-                    00000003000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-                    aaaaaaaa000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-                    bbbbbbbb000000000000000000000000cccccccccccccccccccccccccccccccc
-                    cccccccc00000000000000000000000000000000000000000000000000000000
-                    0000000000000000000000000000000000000000000000000000000000000000"
+                     0000000000000000000000002222222222222222222222222222222222222222
+                     0000000000000000000000000000000000000000000000000000000000000060
+                     eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+                     00000000000000000000000000000000000000000000000000000000000001a4
+                     b63e800d00000000000000000000000000000000000000000000000000000000
+                     0000010000000000000000000000000000000000000000000000000000000000
+                     0000000200000000000000000000000000000000000000000000000000000000
+                     0000000000000000000000000000000000000000000000000000000000000000
+                     0000018000000000000000000000000033333333333333333333333333333333
+                     3333333300000000000000000000000000000000000000000000000000000000
+                     0000000000000000000000000000000000000000000000000000000000000000
+                     0000000000000000000000000000000000000000000000000000000000000000
+                     0000000000000000000000000000000000000000000000000000000000000000
+                     00000003000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                     aaaaaaaa000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+                     bbbbbbbb000000000000000000000000cccccccccccccccccccccccccccccccc
+                     cccccccc00000000000000000000000000000000000000000000000000000000
+                     0000000000000000000000000000000000000000000000000000000000000000"
                 )
                 .to_vec(),
             }
