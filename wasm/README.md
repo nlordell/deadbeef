@@ -4,9 +4,9 @@ The `deadbeef` tool packaged for the Web using WebAssembly.
 
 ## Requirements
 
-- `wasm-pack`
-- `wasm-opt`
-- `deno`
+- [`wasm-opt` (Binaryen)](https://github.com/WebAssembly/binaryen)
+- [`wasm-pack`](https://rustwasm.github.io/wasm-pack/installer/)
+- [`deno`](https://deno.land/manual/getting_started/installation)
 
 ## Building
 
