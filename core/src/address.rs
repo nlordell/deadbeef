@@ -72,13 +72,12 @@ impl FromStr for Address {
     }
 }
 
+#[macro_export]
 macro_rules! address {
     ($s:literal) => {
-        $crate::address::Address(::hex_literal::hex!($s))
+        $crate::Address($crate::hex!($s))
     };
 }
-
-pub(crate) use address;
 
 #[cfg(test)]
 mod tests {

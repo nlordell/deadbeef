@@ -1,14 +1,9 @@
-mod address;
 mod chain;
-mod create2;
-mod safe;
 
-use crate::{address::Address, safe::Safe};
-use chain::Chain;
+use self::chain::Chain;
 use clap::Parser;
+use deadbeef_core::{Address, Contracts, Safe};
 use hex::FromHexError;
-use rand::{rngs::SmallRng, Rng as _, SeedableRng as _};
-use safe::{Contracts, Info};
 use std::{process, str::FromStr, sync::mpsc, thread};
 
 /// Generate vanity addresses for Safe deployments.
@@ -103,7 +98,10 @@ fn main() {
                 let safe = Safe::new(contracts.clone(), args.owners.clone(), args.threshold);
                 let prefix = args.prefix.0.clone();
                 let result = sender.clone();
-                move || search_vanity_safe(safe, &prefix, result)
+                move || {
+                    let safe = deadbeef_core::search(safe, &prefix);
+                    let _ = result.send(safe);
+                }
             })
         })
         .collect::<Vec<_>>();
@@ -127,14 +125,4 @@ fn main() {
 
     let _ = threads;
     process::exit(0);
-}
-
-fn search_vanity_safe(mut safe: Safe, prefix: &[u8], result: mpsc::Sender<Info>) {
-    let mut rng = SmallRng::from_entropy();
-
-    while !safe.creation_address().0.starts_with(prefix) {
-        safe.update_salt_nonce(|n| rng.fill(n));
-    }
-
-    let _ = result.send(safe.info());
 }

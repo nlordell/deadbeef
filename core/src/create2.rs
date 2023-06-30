@@ -45,7 +45,6 @@ impl Create2 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::address::address;
     use hex_literal::hex;
 
     #[test]

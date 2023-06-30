@@ -1,14 +1,5 @@
-[package]
-name = "deadbeef"
-version = "0.1.0"
-edition = "2021"
-publish = false
-license = "GPL-3.0-or-later"
-
-[dependencies]
-clap = { version = "4", features = ["derive"] }
-hex = "0.4"
-hex-literal = "0.4"
-num_cpus = "1"
-rand = { version = "0.8", features = ["small_rng"] }
-tiny-keccak = { version = "2", features = ["keccak"] }
+[workspace]
+members = [
+  "cli",
+  "core",
+]
