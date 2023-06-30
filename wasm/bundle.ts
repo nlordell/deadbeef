@@ -1,6 +1,6 @@
 /**
- * This script bundles the `deadbeef` SearchWorker into a single file. This is
- * done in a two step process:
+ * This script bundles the `DeadbeefWorker` into a single file. This is done in
+ * a two step process:
  * 1. The `worker.js` and imports are bundled into a file with the `deadbeef`
  *    WASM blob embedded.
  * 2. The `index.js` is bundled with the `worker.js` JavaScript, so we can
@@ -28,15 +28,7 @@ const workerSrc = await Deno.readTextFile("dist/worker.js");
 const indexSrc = await Deno.readTextFile("lib/index.js");
 
 const bundle = `
-const workerSource = new Blob([${
-  JSON.stringify(
-    workerSrc
-      .replace(
-        /[a-zA-Z]* *= *new URL\(['"]deadbeef_bg\.wasm['"], *import\.meta\.url\)/,
-        'throw new Error("missing WASM source")',
-      ),
-  )
-}]);
+const workerSource = new Blob([${JSON.stringify(workerSrc)}]);
 const workerUrl = URL.createObjectURL(workerSource);
 
 ${

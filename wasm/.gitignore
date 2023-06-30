@@ -1,0 +1,4 @@
+/dist
+/lib/pkg
+/node_modules
+package-lock.json

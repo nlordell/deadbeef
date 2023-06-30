@@ -34,7 +34,7 @@ export interface Transaction {
  * A worker for searching for a vanity Safe address for the specified
  * parameters and prefix.
  */
-export declare class SearchWorker {
+export declare class DeadbeefWorker {
     constructor(safe: Safe, prefix: Bytes);
     wait(): Promise<Creation>;
     cancel(err?: Error): void;

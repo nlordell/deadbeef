@@ -7,6 +7,10 @@ lib/pkg:
 	wasm-pack build --target web --release --no-pack \
 		--out-name deadbeef --out-dir lib/pkg
 
+.PHONY: test
+test: dist
+	deno test test/index.ts
+
 .PHONY: host
 host: dist
 	python3 -m http.server

@@ -1,9 +1,12 @@
-export class SearchWorker {
+export class DeadbeefWorker {
   #promise;
   #terminate;
 
   constructor(safe, prefix) {
-    const worker = new Worker(new URL("./worker.js", import.meta.url));
+    const worker = new Worker(
+      new URL("./worker.js", import.meta.url),
+      { type: "module" },
+    );
 
     this.#promise = new Promise((resolve, reject) => {
       this.#terminate = (err) => {
