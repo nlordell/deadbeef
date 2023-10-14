@@ -67,7 +67,7 @@ fn inner(safe: JsValue, prefix: &str) -> Result<JsValue, Box<dyn Error>> {
     let prefix = hex_decode(prefix)?;
 
     let mut safe = Safe::new(contracts, owners, threshold);
-    deadbeef_core::search(&mut safe, &prefix);
+    deadbeef_core::search(&mut safe, &prefix, false);
 
     let transaction = safe.transaction();
 
