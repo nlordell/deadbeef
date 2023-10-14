@@ -22,7 +22,7 @@ struct Args {
 
     /// The prefix to look for.
     #[arg(short, long)]
-    prefix: Hex,
+    prefix: String,
 
     /// The chain ID to find a vanity Safe address for. If the chain is not
     /// supported, then all of '--proxy-factory', '--proxy-init-code',
@@ -65,8 +65,32 @@ impl FromStr for Hex {
     }
 }
 
+// returns a vector of u8 nibbles from a hex string
+// if the hex string is of odd length, the first 4 bits of each u8 will be 0
+// if the hex string is of even length, each u8 will be split into two nibbles
+fn hex_to_nibbles(hex_str: &str) -> Result<Vec<u8>, std::num::ParseIntError> {
+    let cleaned = if hex_str.starts_with("0x") {
+        &hex_str[2..]
+    } else {
+        hex_str
+    };
+    if hex_str.len() % 2 != 0 {
+        cleaned.chars().map(|c| u8::from_str_radix(&c.to_string(), 16)).collect()
+    } else {
+        (0..cleaned.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&cleaned[i..i + 2], 16))
+        .collect()
+    }
+}
+
 fn main() {
     let args = Args::parse();
+
+    let prefix = hex_to_nibbles(&args.prefix)
+        .expect("Failed to decode hex string"); 
+
+    let is_odd_length = args.prefix.len() % 2 != 0;
 
     let contracts = args
         .chain
@@ -96,10 +120,10 @@ fn main() {
         .map(|_| {
             thread::spawn({
                 let mut safe = Safe::new(contracts.clone(), args.owners.clone(), args.threshold);
-                let prefix = args.prefix.0.clone();
+                let prefix = prefix.clone();
                 let result = sender.clone();
                 move || {
-                    deadbeef_core::search(&mut safe, &prefix);
+                    deadbeef_core::search(&mut safe, &prefix, is_odd_length);
                     let _ = result.send(safe);
                 }
             })
