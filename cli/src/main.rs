@@ -22,7 +22,7 @@ struct Args {
 
     /// The prefix to look for.
     #[arg(short, long)]
-    prefix: Hex,
+    prefix: String,
 
     /// The chain ID to find a vanity Safe address for. If the chain is not
     /// supported, then all of '--proxy-factory', '--proxy-init-code',
@@ -65,8 +65,21 @@ impl FromStr for Hex {
     }
 }
 
+fn hex_to_nibbles(hex_str: &str) -> Result<Vec<u8>, std::num::ParseIntError> {
+    let cleaned = if hex_str.starts_with("0x") {
+        &hex_str[2..]
+    } else {
+        hex_str
+    };
+
+    cleaned.chars().map(|c| u8::from_str_radix(&c.to_string(), 16)).collect()
+}
+
 fn main() {
     let args = Args::parse();
+
+    let prefix_nibbles = hex_to_nibbles(&args.prefix)
+        .expect("Failed to decode hex string"); 
 
     let contracts = args
         .chain
@@ -96,7 +109,7 @@ fn main() {
         .map(|_| {
             thread::spawn({
                 let mut safe = Safe::new(contracts.clone(), args.owners.clone(), args.threshold);
-                let prefix = args.prefix.0.clone();
+                let prefix = prefix_nibbles.clone();
                 let result = sender.clone();
                 move || {
                     deadbeef_core::search(&mut safe, &prefix);
