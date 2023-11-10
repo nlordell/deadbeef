@@ -11,6 +11,8 @@ For Ethereum:
 Since this version of the Safe proxy factory uses `CREATE2` op-code, we can change the final address by fiddling with the user-specified `saltNonce` parameter.
 It works by randomly trying out different values for the `saltNonce` parameter until it find ones that creates an address matching the desired prefix.
 
+*Commit [`24df00b`](https://github.com/nlordell/deadbeef/tree/24df00bfb1e7fdb594be97c017cd627e643c5318) supports Safe `v1.3.0`.* 
+
 ## Building
 
 For longer prefixes, this can take a **very** long time, so be sure to build with release:
