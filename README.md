@@ -85,7 +85,7 @@ This feature is not officially supported by the tool.
 
 The above command will generate some [calldata](https://www.quicknode.com/guides/ethereum-development/transactions/ethereum-transaction-calldata) for creating a Safe with the specified owners and threshold.
 
-To create the safe, simply execute a transaction to the [factory address](https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67) with the generated calldata.
+To create the safe, simply execute a transaction to the [factory address](https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67) with the generated calldata, or use the `createProxyWithNonce` function on Etherscan.
 The transaction can be executed from any account (it can be done in MetaMask directly for example).
 
 ### Metamask Steps
@@ -95,6 +95,17 @@ Go to Settings -> Advanced and enable `Show hex data`. When you go to create a t
 Send a `0eth` transaction to the factory address, placing the generated calldata in the `Hex data` field.
 
 Metamask will recognise it as a contract interaction in the confirmation step.
+
+### Etherscan
+
+Use the `--params` flag to output contract-ready inputs.
+
+1. Visit the [factory address](https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67).
+2. Click Contract -> Write Contract -> Connect to Web3.
+3. Connect the account you wish to pay for the Safe creation.
+
+Fill the fields in function `3. createProxyWithNonce` using the generated outputs.
+
 
 ## Is This Vegan Friendly 🥦?
 
