@@ -52,11 +52,11 @@ struct Args {
     #[arg(short, long)]
     quiet: bool,
 
-    /// Quiet mode.
+    /// Params mode.
     ///
-    /// Only output the transaction calldata without any extra information.
-    #[arg(short, long)]
-    inputs: bool,
+    /// Only output the needed fields for direct contract interaction.
+    #[arg(short = 'P', long)]
+    params: bool,
 }
 
 /// Helper type for parsing hexadecimal byte input from the command line.
@@ -118,7 +118,7 @@ fn main() {
 
     if args.quiet {
         println!("0x{}", hex::encode(&transaction.calldata));
-    } else if args.inputs {
+    } else if args.params {
         println!("address:      {}", safe.creation_address());
         println!("owners:       {}", args.owners[0]);
         for owner in &args.owners[1..] {
