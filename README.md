@@ -65,22 +65,6 @@ As well as custom fallback handlers:
 deadbeef ... --fallback-handler 0x4e305935b14627eA57CBDbCfF57e81fd9F240403 ...
 ```
 
-## Unsupported Chains
-
-Safe deployments on non-officially supported networks can also be used by overriding all contract addresses and the proxy init code:
-
-```
-deadbeef ... \
-  --chain $UNSUPPORTED_CHAIN \
-  --proxy-factory 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
-  --proxy-init-code 0xbb \
-  --singleton 0xcccccccccccccccccccccccccccccccccccccccc \
-  --fallback-handler 0xdddddddddddddddddddddddddddddddddddddddd
-```
-
-**Use this with caution**, this assumes that the proxy address is computed in the exact same was as on Ethereum, which may not be the case for all networks.
-This feature is not officially supported by the tool.
-
 ## Creating the Safe
 
 The above command will generate some [calldata](https://www.quicknode.com/guides/ethereum-development/transactions/ethereum-transaction-calldata) for creating a Safe with the specified owners and threshold.
@@ -105,6 +89,22 @@ Use the `--params` flag to output contract-ready inputs.
 3. Connect the account you wish to pay for the Safe creation.
 
 Fill the fields in function `3. createProxyWithNonce` using the generated outputs.
+
+## Unsupported Chains
+
+Safe deployments on non-officially supported networks can also be used by overriding all contract addresses and the proxy init code:
+
+```
+deadbeef ... \
+  --chain $UNSUPPORTED_CHAIN \
+  --proxy-factory 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  --proxy-init-code 0xbb \
+  --singleton 0xcccccccccccccccccccccccccccccccccccccccc \
+  --fallback-handler 0xdddddddddddddddddddddddddddddddddddddddd
+```
+
+**Use this with caution**, this assumes that the proxy address is computed in the exact same was as on Ethereum, which may not be the case for all networks.
+This feature is not officially supported by the tool.
 
 
 ## Is This Vegan Friendly 🥦?
