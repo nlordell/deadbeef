@@ -83,9 +83,18 @@ This feature is not officially supported by the tool.
 
 ## Creating the Safe
 
-The above command will generate some calldata for creating a Safe with the specified owners and threshold.
+The above command will generate some [calldata](https://www.quicknode.com/guides/ethereum-development/transactions/ethereum-transaction-calldata) for creating a Safe with the specified owners and threshold.
+
 To create the safe, simply execute a transaction to the [factory address](https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67) with the generated calldata.
 The transaction can be executed from any account (it can be done in MetaMask directly for example).
+
+### Metamask Steps
+
+Go to Settings -> Advanced and enable `Show hex data`. When you go to create a transaction you will have a new optional field labelled `Hex data`.
+
+Send a `0eth` transaction to the factory address, placing the generated calldata in the `Hex data` field.
+
+Metamask will recognise it as a contract interaction in the confirmation step.
 
 ## Is This Vegan Friendly 🥦?
 
