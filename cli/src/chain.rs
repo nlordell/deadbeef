@@ -17,8 +17,8 @@ impl Chain {
         Self(1)
     }
 
-    /// Returns the [`Contracts`] for this chain, or `None` if the chain is not
-    /// supported.
+    /// Returns the [`Contracts`] for this chain, or [`None`] if the chain is
+    /// not supported.
     pub fn contracts(&self) -> Option<Contracts> {
         // Addresses can be found in the Safe deployments repository:
         // <https://github.com/safe-global/safe-deployments/tree/main/src/assets/v1.4.1>
@@ -49,6 +49,16 @@ impl Chain {
                 singleton: address!("41675C099F32341bf84BFc5382aF534df5C7461a"),
                 fallback_handler: address!("fd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99"),
             }),
+            _ => None,
+        }
+    }
+
+    /// Returns the URL of the block explorer for the chain, or [`None`] if the
+    /// chain is not supported.
+    pub fn explorer(&self) -> Option<&str> {
+        match self.0 {
+            1 => Some("https://etherscan.io"),
+            100 => Some("https://gnosisscan.io"),
             _ => None,
         }
     }

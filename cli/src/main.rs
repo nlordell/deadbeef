@@ -4,11 +4,15 @@ use self::chain::Chain;
 use clap::Parser;
 use deadbeef_core::{Address, Contracts, Safe};
 use hex::FromHexError;
-use std::{process, str::FromStr, sync::mpsc, thread};
+use std::{num::NonZeroUsize, process, str::FromStr, sync::mpsc, thread};
 
 /// Generate vanity addresses for Safe deployments.
 #[derive(Clone, Parser)]
 struct Args {
+    /// The number of parallel threads to use. Defaults to the number of CPUs.
+    #[arg(short = 'n', long, default_value_t = num_cpus::get())]
+    threads: usize,
+
     /// Safe owners.
     ///
     /// Can be specified multiple times in order to specify multiple owners.
@@ -42,21 +46,27 @@ struct Args {
     #[arg(long)]
     singleton: Option<Address>,
 
-    /// Override for the Safe fallback handler address.
+    /// Override for the fallback handler address.
     #[arg(long)]
     fallback_handler: Option<Address>,
 
     /// Quiet mode.
     ///
     /// Only output the transaction calldata without any extra information.
-    #[arg(short, long)]
+    #[arg(short, long, conflicts_with = "params")]
     quiet: bool,
 
-    /// Params mode.
+    /// Parameters mode.
     ///
-    /// Only output the needed fields for direct contract interaction.
-    #[arg(short = 'P', long)]
+    /// Only output the parameters for the calling the `createProxyWithNonce`
+    /// function on the `SafeProxyFactory`.
+    #[arg(short = 'P', long, conflicts_with = "quiet")]
     params: bool,
+
+    /// Override the block explorer URL for generating a link to the
+    /// `SafeProxyFactory` contract. Can only be specified in parameters mode.
+    #[arg(long, requires = "params")]
+    explorer: Option<String>,
 }
 
 /// Helper type for parsing hexadecimal byte input from the command line.
@@ -74,6 +84,7 @@ impl FromStr for Hex {
 fn main() {
     let args = Args::parse();
 
+    let threads = NonZeroUsize::new(args.threads);
     let contracts = args
         .chain
         .contracts()
@@ -96,38 +107,53 @@ fn main() {
             })
         })
         .expect("unsupported chain");
+    let explorer = args.explorer.as_deref().or_else(|| args.chain.explorer());
 
-    let (sender, receiver) = mpsc::channel();
-    let threads = (0..num_cpus::get())
-        .map(|_| {
-            thread::spawn({
-                let mut safe = Safe::new(contracts.clone(), args.owners.clone(), args.threshold);
-                let prefix = args.prefix.0.clone();
-                let result = sender.clone();
-                move || {
-                    deadbeef_core::search(&mut safe, &prefix);
-                    let _ = result.send(safe);
-                }
+    let setup = || {
+        (
+            Safe::new(contracts.clone(), args.owners.clone(), args.threshold),
+            args.prefix.0.clone(),
+        )
+    };
+    let safe = if let Some(threads) = threads {
+        let (sender, receiver) = mpsc::channel();
+        let _threads = (0..threads.get())
+            .map(|_| {
+                thread::spawn({
+                    let (mut safe, prefix) = setup();
+                    let result = sender.clone();
+                    move || {
+                        deadbeef_core::search(&mut safe, &prefix);
+                        let _ = result.send(safe);
+                    }
+                })
             })
-        })
-        .collect::<Vec<_>>();
+            .collect::<Vec<_>>();
+        receiver.recv().expect("missing result")
+    } else {
+        let (mut safe, prefix) = setup();
+        deadbeef_core::search(&mut safe, &prefix);
+        safe
+    };
 
-    let safe = receiver.recv().expect("missing result");
     let transaction = safe.transaction();
-    let initializer_hex = hex::encode(safe.initializer());
+    let factory = explorer
+        .map(|explorer| {
+            format!(
+                "{}/address/{}#writeContract#F3",
+                explorer, contracts.proxy_factory
+            )
+        })
+        .unwrap_or_else(|| contracts.proxy_factory.to_string());
 
     if args.quiet {
         println!("0x{}", hex::encode(&transaction.calldata));
     } else if args.params {
-        println!("address:      {}", safe.creation_address());
-        println!("owners:       {}", args.owners[0]);
-        for owner in &args.owners[1..] {
-            println!("           {}", owner);
-        }
-        println!("--------------------------------------------------------");
-        println!("_singleton:   {}", contracts.singleton);
-        println!("initializer:  0x{}", initializer_hex);
-        println!("saltNonce:   0x{}", hex::encode(&safe.salt_nonce()));
+        println!("address:     {}", safe.creation_address());
+        println!("factory:     {}", factory);
+        println!("singleton:   {}", contracts.singleton);
+        println!("initializer: 0x{}", hex::encode(safe.initializer()));
+        println!("salt nonce:  0x{}", hex::encode(safe.salt_nonce()));
     } else {
         println!("address:   {}", safe.creation_address());
         println!("factory:   {}", contracts.proxy_factory);
@@ -139,9 +165,7 @@ fn main() {
         }
         println!("threshold: {}", args.threshold);
         println!("calldata:  0x{}", hex::encode(&transaction.calldata));
-
     }
 
-    let _ = threads;
     process::exit(0);
 }

@@ -4,3 +4,4 @@ members = [
   "core",
   "wasm",
 ]
+resolver = "2"

@@ -10,9 +10,9 @@ pub struct Safe {
     contracts: Contracts,
     owners: Vec<Address>,
     threshold: usize,
+    initializer: Vec<u8>,
     salt: [u8; 64],
     create2: Create2,
-    initializer_calldata: Vec<u8>,
 }
 
 /// Safe contract data on a given chain.
@@ -40,13 +40,11 @@ pub struct Transaction {
 impl Safe {
     /// Creates a new safe from deployment parameters.
     pub fn new(contracts: Contracts, owners: Vec<Address>, threshold: usize) -> Self {
-        // Compute the initializer calldata once and store it
-        let initializer_calldata = contracts.initializer(&owners, threshold);
+        let initializer = contracts.initializer(&owners, threshold);
 
-        // Compute the salt using the initializer calldata
         let mut salt = [0_u8; 64];
         let mut hasher = Keccak::v256();
-        hasher.update(&initializer_calldata);
+        hasher.update(&initializer);
         hasher.finalize(&mut salt[0..32]);
 
         let mut create2 = Create2::new(
@@ -54,9 +52,7 @@ impl Safe {
             Default::default(),
             contracts.proxy_init_code_digest(),
         );
-
-        // Update the salt for the create2 instance
-        hasher = Keccak::v256();
+        let mut hasher = Keccak::v256();
         hasher.update(&salt);
         hasher.finalize(create2.salt_mut());
 
@@ -64,9 +60,9 @@ impl Safe {
             contracts,
             owners,
             threshold,
+            initializer,
             salt,
             create2,
-            initializer_calldata, // Store the initializer data here
         }
     }
 
@@ -82,7 +78,7 @@ impl Safe {
 
     /// Returns the initializer calldata for the Safe.
     pub fn initializer(&self) -> &[u8] {
-        &self.initializer_calldata
+        &self.initializer
     }
 
     /// Updates the salt nonce and recomputes the `CREATE2` salt.
@@ -160,7 +156,6 @@ impl Contracts {
         buffer.extend_from_slice(&[0_u8; 28]); // padding
         buffer
     }
-
 }
 
 /// Poor man's ABI encode.

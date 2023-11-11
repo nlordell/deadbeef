@@ -78,7 +78,7 @@ The transaction can be executed from any account (it can be done in MetaMask dir
 
 Go to Settings -> Advanced and enable `Show hex data`. When you go to create a transaction you will have a new optional field labelled `Hex data`.
 
-Send a `0eth` transaction to the factory address, placing the generated calldata in the `Hex data` field.
+Send a 0Ξ transaction to the factory address, placing the generated calldata in the `Hex data` field.
 
 Metamask will recognise it as a contract interaction in the confirmation step.
 
@@ -86,11 +86,9 @@ Metamask will recognise it as a contract interaction in the confirmation step.
 
 Use the `--params` flag to output contract-ready inputs.
 
-1. Visit the [factory address](https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67).
-2. Click Contract -> Write Contract -> Connect to Web3.
-3. Connect the account you wish to pay for the Safe creation.
-
-Fill the fields in function `3. createProxyWithNonce` using the generated outputs.
+1. Visit the `factory` URL from the command output. The link should open up the explorer at the correct location, if not click on _Contract_ > _Write Contract_.
+2. Click on _Connect to Web3_ to connect the account you wish to pay for the Safe creation.
+3. Fill the fields for the function _3. createProxyWithNonce (0x1688f0b9)_ using the generated outputs.
 
 ## Unsupported Chains
 
@@ -107,7 +105,6 @@ deadbeef ... \
 
 **Use this with caution**, this assumes that the proxy address is computed in the exact same was as on Ethereum, which may not be the case for all networks.
 This feature is not officially supported by the tool.
-
 
 ## Is This Vegan Friendly 🥦?
 
