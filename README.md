@@ -11,6 +11,8 @@ For Ethereum:
 Since this version of the Safe proxy factory uses `CREATE2` op-code, we can change the final address by fiddling with the user-specified `saltNonce` parameter.
 It works by randomly trying out different values for the `saltNonce` parameter until it find ones that creates an address matching the desired prefix.
 
+*Commit [`24df00b`](https://github.com/nlordell/deadbeef/tree/24df00bfb1e7fdb594be97c017cd627e643c5318) supports Safe `v1.3.0`.* 
+
 ## Building
 
 For longer prefixes, this can take a **very** long time, so be sure to build with release:
@@ -65,6 +67,31 @@ As well as custom fallback handlers:
 deadbeef ... --fallback-handler 0x4e305935b14627eA57CBDbCfF57e81fd9F240403 ...
 ```
 
+## Creating the Safe
+
+The above command will generate some [calldata](https://www.quicknode.com/guides/ethereum-development/transactions/ethereum-transaction-calldata) for creating a Safe with the specified owners and threshold.
+
+To create the safe, simply execute a transaction to the [factory address](https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67) with the generated calldata, or use the `createProxyWithNonce` function on Etherscan.
+The transaction can be executed from any account (it can be done in MetaMask directly for example).
+
+### Metamask Steps
+
+Go to Settings -> Advanced and enable `Show hex data`. When you go to create a transaction you will have a new optional field labelled `Hex data`.
+
+Send a `0eth` transaction to the factory address, placing the generated calldata in the `Hex data` field.
+
+Metamask will recognise it as a contract interaction in the confirmation step.
+
+### Etherscan
+
+Use the `--params` flag to output contract-ready inputs.
+
+1. Visit the [factory address](https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67).
+2. Click Contract -> Write Contract -> Connect to Web3.
+3. Connect the account you wish to pay for the Safe creation.
+
+Fill the fields in function `3. createProxyWithNonce` using the generated outputs.
+
 ## Unsupported Chains
 
 Safe deployments on non-officially supported networks can also be used by overriding all contract addresses and the proxy init code:
@@ -81,20 +108,6 @@ deadbeef ... \
 **Use this with caution**, this assumes that the proxy address is computed in the exact same was as on Ethereum, which may not be the case for all networks.
 This feature is not officially supported by the tool.
 
-## Creating the Safe
-
-The above command will generate some [calldata](https://www.quicknode.com/guides/ethereum-development/transactions/ethereum-transaction-calldata) for creating a Safe with the specified owners and threshold.
-
-To create the safe, simply execute a transaction to the [factory address](https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67) with the generated calldata.
-The transaction can be executed from any account (it can be done in MetaMask directly for example).
-
-### Metamask Steps
-
-Go to Settings -> Advanced and enable `Show hex data`. When you go to create a transaction you will have a new optional field labelled `Hex data`.
-
-Send a `0eth` transaction to the factory address, placing the generated calldata in the `Hex data` field.
-
-Metamask will recognise it as a contract interaction in the confirmation step.
 
 ## Is This Vegan Friendly 🥦?
 

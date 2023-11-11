@@ -51,6 +51,12 @@ struct Args {
     /// Only output the transaction calldata without any extra information.
     #[arg(short, long)]
     quiet: bool,
+
+    /// Params mode.
+    ///
+    /// Only output the needed fields for direct contract interaction.
+    #[arg(short = 'P', long)]
+    params: bool,
 }
 
 /// Helper type for parsing hexadecimal byte input from the command line.
@@ -108,9 +114,20 @@ fn main() {
 
     let safe = receiver.recv().expect("missing result");
     let transaction = safe.transaction();
+    let initializer_hex = hex::encode(safe.initializer());
 
     if args.quiet {
         println!("0x{}", hex::encode(&transaction.calldata));
+    } else if args.params {
+        println!("address:      {}", safe.creation_address());
+        println!("owners:       {}", args.owners[0]);
+        for owner in &args.owners[1..] {
+            println!("           {}", owner);
+        }
+        println!("--------------------------------------------------------");
+        println!("_singleton:   {}", contracts.singleton);
+        println!("initializer:  0x{}", initializer_hex);
+        println!("saltNonce:   0x{}", hex::encode(&safe.salt_nonce()));
     } else {
         println!("address:   {}", safe.creation_address());
         println!("factory:   {}", contracts.proxy_factory);
@@ -122,6 +139,7 @@ fn main() {
         }
         println!("threshold: {}", args.threshold);
         println!("calldata:  0x{}", hex::encode(&transaction.calldata));
+
     }
 
     let _ = threads;
