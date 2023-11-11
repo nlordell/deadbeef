@@ -23,10 +23,10 @@ impl Chain {
         // Addresses can be found in the Safe deployments repository:
         // <https://github.com/safe-global/safe-deployments/tree/main/src/assets/v1.4.1>
         // The `proxyCreationCode` can be read from the from the proxy factory:
-        // <https://etherscan.io/address/0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67>
+        // <https://etherscan.io/address/0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2>
         match self.0 {
             1 | 100 => Some(Contracts {
-                proxy_factory: address!("4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67"),
+                proxy_factory: address!("a6B71E26C5e0845f74c812102Ca7114b6a896AB2"),
                 proxy_init_code: hex!(
                     "608060405234801561001057600080fd5b506040516101e63803806101e68339
                      818101604052602081101561003357600080fd5b810190808051906020019092
@@ -40,14 +40,14 @@ impl Chain {
                      ffffffffffffffffffffffffffffffffffffff600054167fa619486e00000000
                      0000000000000000000000000000000000000000000000006000351415605057
                      8060005260206000f35b3660008037600080366000845af43d6000803e600081
-                     14156070573d6000fd5b3d6000f3fea264697066735822122003d1488ee65e08
-                     fa41e58e888a9865554c535f2c77126a82cb4c0f917f31441364736f6c634300
+                     14156070573d6000fd5b3d6000f3fea2646970667358221220d1429297349653
+                     a4918076d650332de1a1068c5f3e07c5c82360c277770b955264736f6c634300
                      07060033496e76616c69642073696e676c65746f6e2061646472657373207072
                      6f7669646564"
                 )
                 .to_vec(),
-                singleton: address!("41675C099F32341bf84BFc5382aF534df5C7461a"),
-                fallback_handler: address!("fd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99"),
+                singleton: address!("d9Db270c1B5E3Bd161E8c8503c55cEABeE709552"),
+                fallback_handler: address!("f48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4"),
             }),
             _ => None,
         }
@@ -102,33 +102,35 @@ mod tests {
                 .contracts()
                 .unwrap()
                 .proxy_init_code_digest(),
-            hex!("76733d705f71b79841c0ee960a0ca880f779cde7ef446c989e6d23efc0a4adfb"),
+            hex!("56e3081a3d1bb38ed4eed1a39f7729c3cc77c7825794c15bbf326f3047fd779c"),
         );
     }
 
     #[test]
     fn compute_address() {
-        // <https://etherscan.io/tx/0xdac58edb65c2af3f86f03586eeec7caa7ee245d6d06679a913e5dda16617658e>
+        // <https://etherscan.io/tx/0x7b0615b648cb5b9ee366cd22af4e0e40fe90d67c0e140c6efdaabb20b3033a63>
         let mut safe = Safe::new(
             Chain::ethereum().contracts().unwrap(),
             vec![
-                address!("34f845773D4364999f2fbC7AA26ABDeE902cBb46"),
-                address!("E2Df39d8c1c393BDe653D96a09852508CA2816e5"),
-                address!("000000000dD7Bc0bcCE4392698dc3e11004F20eB"),
-                address!("Cbd6073f486714E6641bf87c22A9CEc25aCf5804"),
+                address!("5c8c76f2e990f194462dc5f8a8c76ba16966ed42"),
+                address!("703f28830eeaaad54e786a839f6602ca098016a5"),
+                address!("0e706a98f414f49a412107641c0820b0153ff5dc"),
+                address!("173286fafabea063eeb3726ee5efd4ff414057b9"),
+                address!("2f2806e8b288428f23707a69faa60f52bc565c17"),
+                address!("4507cfb4b077d5dbddd520c701e30173d5b59fad"),
             ],
-            2,
+            3,
         );
         safe.update_salt_nonce(|n| {
             n.copy_from_slice(&hex!(
-                "c437564b491906978ae4396733fbc0835f87e6b2578193331caa87645ebe9bdc"
+                "0000000000000000000000000000000000000000000000000000018bbf9209f3"
             ))
         });
 
         let address = safe.creation_address();
         assert_eq!(
             address,
-            address!("000000000034065b3a94C2118CFe5B4C0067B615")
+            address!("5836152812568244760ba356b5f3838aa5b672e0")
         );
     }
 }
