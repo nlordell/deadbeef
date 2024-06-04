@@ -13,6 +13,6 @@ deadbeef-core = { version = "0.1.0", path = "../core" }
 getrandom = { version = "0.2", features = ["js"] }
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }
-serde-wasm-bindgen = "0.5"
+serde-wasm-bindgen = "0.6"
 wasm-bindgen = "0.2"
 wee_alloc = "0.4"
