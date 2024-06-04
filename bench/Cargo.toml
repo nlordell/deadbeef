@@ -1,0 +1,12 @@
+[package]
+name = "deadbeef-bench"
+version = "0.0.0"
+edition = "2021"
+
+[[bench]]
+name = "deadbeef"
+harness = false
+
+[dependencies]
+deadbeef-core = { version = "0.1.0", path = "../core" }
+divan = "0.1"
