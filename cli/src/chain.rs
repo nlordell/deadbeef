@@ -105,7 +105,7 @@ impl Chain {
                 deployment: &deployment::v1_4_1::CANONICAL,
                 explorer: Explorer {
                     url: "https://snowtrace.io",
-                    selector: "/contract/43114/writeContract?chainid=43114#F2",
+                    selector: "/contract/43114/writeContract?chainid=43114#F3",
                 },
                 singleton: Singleton::SafeL2,
             }),
