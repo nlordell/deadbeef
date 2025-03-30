@@ -30,4 +30,5 @@ jobs:
       - name: Tests
         run: |
           cd wasm
-          make test
+          # For some reason, `wasm-opt` is causing issues in CI...
+          make test WASM_PACK_FLAGS=--no-opt

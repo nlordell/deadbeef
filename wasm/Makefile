@@ -1,3 +1,5 @@
+WASM_PACK_FLAGS ?=
+
 .PHONY: dist
 dist: lib/pkg
 	deno run --allow-all bundle.ts
@@ -5,7 +7,7 @@ dist: lib/pkg
 .PHONY: lib/pkg
 lib/pkg:
 	RUSTFLAGS='--cfg getrandom_backend="wasm_js"' \
-	wasm-pack build --target web --release --no-pack \
+	wasm-pack build $(WASM_PACK_FLAGS) --target web --release --no-pack \
 		--out-name deadbeef --out-dir lib/pkg
 
 .PHONY: test
