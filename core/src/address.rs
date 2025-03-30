@@ -1,5 +1,6 @@
 use hex::FromHexError;
 use std::{
+    error::Error,
     fmt::{self, Debug, Display, Formatter},
     str::{self, FromStr},
 };
@@ -13,6 +14,15 @@ impl Address {
     /// Returns the zero address.
     pub const fn zero() -> Self {
         Self([0; 20])
+    }
+
+    /// Returns `Some(self)` if the address is non-zero.
+    pub fn non_zero(self) -> Option<NonZeroAddress> {
+        if self == Self::zero() {
+            None
+        } else {
+            Some(NonZeroAddress(self))
+        }
     }
 }
 
@@ -72,10 +82,82 @@ impl FromStr for Address {
     }
 }
 
+/// A non-zero Ethereum public address.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct NonZeroAddress(Address);
+
+impl NonZeroAddress {
+    /// Creates a new non-zero address from the specified bytes.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the address is zero.
+    pub const fn from_bytes(bytes: [u8; 20]) -> Self {
+        let mut i = 0;
+        while i < 20 {
+            if bytes[i] != 0 {
+                return Self(Address(bytes));
+            }
+            i += 1;
+        }
+        panic!("invalid zero address");
+    }
+
+    /// Returns the inner address.
+    pub fn get(self) -> Address {
+        self.0
+    }
+}
+
+impl Display for NonZeroAddress {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
+impl FromStr for NonZeroAddress {
+    type Err = NonZeroAddressParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Address::from_str(s)?
+            .non_zero()
+            .ok_or(NonZeroAddressParseError::Zero)
+    }
+}
+
+/// An error reading a non-zero address from a string.
+#[derive(Debug)]
+pub enum NonZeroAddressParseError {
+    /// The address is zero.
+    Zero,
+    /// The address is invalid.
+    Invalid(FromHexError),
+}
+
+impl Display for NonZeroAddressParseError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Zero => f.write_str("zero address"),
+            Self::Invalid(err) => Display::fmt(err, f),
+        }
+    }
+}
+
+impl Error for NonZeroAddressParseError {}
+
+impl From<FromHexError> for NonZeroAddressParseError {
+    fn from(err: FromHexError) -> Self {
+        Self::Invalid(err)
+    }
+}
+
 #[macro_export]
 macro_rules! address {
     ($s:literal) => {
         $crate::Address($crate::hex!($s))
+    };
+    (nz $s:literal) => {
+        $crate::NonZeroAddress::from_bytes($crate::hex!($s))
     };
 }
 

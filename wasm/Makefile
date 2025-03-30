@@ -4,6 +4,7 @@ dist: lib/pkg
 
 .PHONY: lib/pkg
 lib/pkg:
+	RUSTFLAGS='--cfg getrandom_backend="wasm_js"' \
 	wasm-pack build --target web --release --no-pack \
 		--out-name deadbeef --out-dir lib/pkg
 

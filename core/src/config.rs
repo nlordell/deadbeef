@@ -1,4 +1,4 @@
-use crate::address::Address;
+use crate::address::{Address, NonZeroAddress};
 use hex_literal::hex;
 use tiny_keccak::{Hasher as _, Keccak};
 
@@ -15,11 +15,11 @@ pub struct Configuration {
 #[derive(Clone)]
 pub struct Proxy {
     /// The address of the `SafeProxyFactory` contract.
-    pub factory: Address,
+    pub factory: NonZeroAddress,
     /// The `SafeProxy` init code.
     pub init_code: Vec<u8>,
     /// The `Safe` singleton implementation address.
-    pub singleton: Address,
+    pub singleton: NonZeroAddress,
 }
 
 impl Proxy {
@@ -28,7 +28,7 @@ impl Proxy {
         let mut output = [0_u8; 32];
         let mut hasher = Keccak::v256();
         hasher.update(&self.init_code);
-        hasher.update(&abi::addr(self.singleton));
+        hasher.update(&abi::addr(self.singleton.get()));
         hasher.finalize(&mut output);
         output
     }
@@ -38,12 +38,12 @@ impl Proxy {
     pub fn create_proxy_with_nonce(&self, initializer: &[u8], salt_nonce: [u8; 32]) -> Vec<u8> {
         let mut buffer = Vec::new();
         buffer.extend_from_slice(&hex!("1688f0b9"));
-        buffer.extend_from_slice(&abi::addr(self.singleton));
+        buffer.extend_from_slice(&abi::addr(self.singleton.get()));
         buffer.extend_from_slice(&abi::num(0x60)); // initializer.offset
         buffer.extend_from_slice(&salt_nonce);
         buffer.extend_from_slice(&abi::num(initializer.len()));
-        buffer.extend_from_slice(&initializer);
-        buffer.extend_from_slice(&[0_u8; 28]); // padding
+        buffer.extend_from_slice(initializer);
+        buffer.extend_from_slice(abi::padding(initializer)); // padding
         buffer
     }
 }
@@ -52,13 +52,15 @@ impl Proxy {
 #[derive(Clone)]
 pub struct Account {
     /// The initial owners of the account.
-    pub owners: Vec<Address>,
+    pub owners: Vec<NonZeroAddress>,
     /// The signature threshold for the account.
     pub threshold: usize,
     /// The optional `SafeToL2Setup` setup to use.
     pub setup: Option<SafeToL2Setup>,
     /// The optional fallback handler address to use.
-    pub fallback_handler: Option<Address>,
+    pub fallback_handler: Option<NonZeroAddress>,
+    /// The optional address for tagging the Safe.
+    pub identifier: Option<Address>,
 }
 
 impl Account {
@@ -67,9 +69,13 @@ impl Account {
         let (to, data) = self
             .setup
             .as_ref()
-            .map(|setup| (setup.address, setup.encode()))
+            .map(|setup| (setup.address.get(), setup.encode()))
             .unwrap_or_default();
-        let fallback_handler = self.fallback_handler.unwrap_or_default();
+        let fallback_handler = self
+            .fallback_handler
+            .map(NonZeroAddress::get)
+            .unwrap_or_default();
+        let payment_receiver = self.identifier.unwrap_or_default();
 
         let mut buffer = Vec::new();
         buffer.extend_from_slice(&hex!("b63e800d"));
@@ -80,13 +86,14 @@ impl Account {
         buffer.extend_from_slice(&abi::addr(fallback_handler));
         buffer.extend_from_slice(&abi::addr(Address::zero())); // paymentToken
         buffer.extend_from_slice(&abi::num(0)); // payment
-        buffer.extend_from_slice(&abi::addr(Address::zero())); // paymentReceiver
+        buffer.extend_from_slice(&abi::addr(payment_receiver));
         buffer.extend_from_slice(&abi::num(self.owners.len())); // owners.length
         for owner in &self.owners {
-            buffer.extend_from_slice(&abi::addr(*owner));
+            buffer.extend_from_slice(&abi::addr(owner.get()));
         }
         buffer.extend_from_slice(&abi::num(data.len()));
-        buffer.extend_from_slice(&abi::padded(data));
+        buffer.extend_from_slice(&data);
+        buffer.extend_from_slice(abi::padding(&data));
         buffer
     }
 }
@@ -95,17 +102,17 @@ impl Account {
 #[derive(Clone)]
 pub struct SafeToL2Setup {
     /// The addres of the setup contract.
-    pub address: Address,
+    pub address: NonZeroAddress,
     /// The `SafeL2` singleton for the setup.
-    pub singleton_l2: Address,
+    pub l2_singleton: NonZeroAddress,
 }
 
 impl SafeToL2Setup {
     /// Encodes the call to `safeToL2Setup` call on the setup contract.
-    fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
         buffer.extend_from_slice(&hex!("fe51f643"));
-        buffer.extend_from_slice(&abi::addr(self.singleton_l2));
+        buffer.extend_from_slice(&abi::addr(self.l2_singleton.get()));
         buffer
     }
 }
@@ -127,11 +134,10 @@ mod abi {
         b
     }
 
-    pub fn padded(mut d: Vec<u8>) -> Vec<u8> {
-        let b = [0_u8; 32];
+    pub fn padding(d: &[u8]) -> &'static [u8] {
+        static B: [u8; 32] = [0; 32];
         let l = (32 - d.len() % 32) % 32;
-        d.extend_from_slice(&b[..l]);
-        d
+        &B[..l]
     }
 }
 
@@ -143,13 +149,14 @@ mod tests {
     fn simple_initializer() {
         let account = Account {
             owners: vec![
-                address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-                address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
-                address!("cccccccccccccccccccccccccccccccccccccccc"),
+                address!(nz "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                address!(nz "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+                address!(nz "cccccccccccccccccccccccccccccccccccccccc"),
             ],
             threshold: 2,
             setup: None,
             fallback_handler: None,
+            identifier: None,
         };
         assert_eq!(
             &account.initializer(),
@@ -176,16 +183,17 @@ mod tests {
     fn full_initializer() {
         let account = Account {
             owners: vec![
-                address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-                address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
-                address!("cccccccccccccccccccccccccccccccccccccccc"),
+                address!(nz "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                address!(nz "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+                address!(nz "cccccccccccccccccccccccccccccccccccccccc"),
             ],
             threshold: 2,
             setup: Some(SafeToL2Setup {
-                address: address!("1111111111111111111111111111111111111111"),
-                singleton_l2: address!("2222222222222222222222222222222222222222"),
+                address: address!(nz "1111111111111111111111111111111111111111"),
+                l2_singleton: address!(nz "2222222222222222222222222222222222222222"),
             }),
-            fallback_handler: Some(address!("ffffffffffffffffffffffffffffffffffffffff")),
+            fallback_handler: Some(address!(nz "ffffffffffffffffffffffffffffffffffffffff")),
+            identifier: None,
         };
         assert_eq!(
             &account.initializer(),
@@ -204,9 +212,8 @@ mod tests {
                  000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
                  000000000000000000000000cccccccccccccccccccccccccccccccccccccccc
                  0000000000000000000000000000000000000000000000000000000000000024
-                 fe51f643
-                 0000000000000000000000002222222222222222222222222222222222222222
-                         00000000000000000000000000000000000000000000000000000000"
+                 fe51f64300000000000000000000000022222222222222222222222222222222
+                 2222222200000000000000000000000000000000000000000000000000000000"
             ),
         );
     }

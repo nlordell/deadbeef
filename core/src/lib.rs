@@ -1,14 +1,12 @@
 #[macro_use]
 mod address;
-mod abi;
-mod config;
-mod contracts;
+pub mod config;
 mod create2;
 mod safe;
 
 pub use self::{
-    address::Address,
-    config::{Account, Configuration, Proxy, SafeToL2Setup},
+    address::{Address, NonZeroAddress},
+    config::Configuration,
     safe::{Safe, Transaction},
 };
 pub use hex_literal::hex;

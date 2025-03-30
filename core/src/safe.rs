@@ -1,12 +1,12 @@
 //! Module containing Safe
 
-use crate::{abi, address::Address, contracts::Contracts, create2::Create2};
+use crate::{address::Address, create2::Create2, Configuration};
 use tiny_keccak::{Hasher as _, Keccak};
 
 /// Safe deployment for computing deterministic addresses.
 #[derive(Clone)]
 pub struct Safe {
-    contracts: Contracts,
+    config: Configuration,
     initializer: Vec<u8>,
     salt: [u8; 64],
     create2: Create2,
@@ -22,15 +22,9 @@ pub struct Transaction {
 }
 
 impl Safe {
-    /// Creates a new safe from deployment parameters.
-    pub fn new(contracts: Contracts, owners: Vec<Address>, threshold: usize) -> Self {
-        let (to, data) = contracts
-            .setup
-            .as_ref()
-            .map(|setup| (setup.address, abi::safe_to_l2_setup(setup.singleton_l2)))
-            .unwrap_or_default();
-        let initializer =
-            abi::safe_setup(&owners, threshold, to, &data, contracts.fallback_handler);
+    /// Creates a new safe from spcified configuration.
+    pub fn new(config: Configuration) -> Self {
+        let initializer = config.account.initializer();
 
         let mut salt = [0_u8; 64];
         let mut hasher = Keccak::v256();
@@ -38,16 +32,16 @@ impl Safe {
         hasher.finalize(&mut salt[0..32]);
 
         let mut create2 = Create2::new(
-            contracts.proxy_factory,
+            config.proxy.factory.get(),
             Default::default(),
-            abi::proxy_init_code_hash(&contracts.proxy_init_code, contracts.singleton),
+            config.proxy.init_code_hash(),
         );
         let mut hasher = Keccak::v256();
         hasher.update(&salt);
         hasher.finalize(create2.salt_mut());
 
         Self {
-            contracts,
+            config,
             initializer,
             salt,
             create2,
@@ -70,8 +64,8 @@ impl Safe {
     }
 
     /// Updates the salt nonce and recomputes the `CREATE2` salt.
-    pub fn update_salt_nonce(&mut self, f: impl FnOnce(&mut [u8])) {
-        let salt_nonce = unsafe { self.salt.get_unchecked_mut(32..64) };
+    pub fn update_salt_nonce(&mut self, f: impl FnOnce(&mut [u8; 32])) {
+        let salt_nonce = unsafe { &mut *self.salt.get_unchecked_mut(32..).as_mut_ptr().cast() };
         f(salt_nonce);
 
         let mut hasher = Keccak::v256();
@@ -82,12 +76,11 @@ impl Safe {
     /// Returns the transaction information for the current safe deployment.
     pub fn transaction(&self) -> Transaction {
         Transaction {
-            to: self.contracts.proxy_factory,
-            calldata: abi::create_proxy_with_nonce(
-                self.contracts.singleton,
-                &self.initializer,
-                self.salt_nonce(),
-            ),
+            to: self.config.proxy.factory.get(),
+            calldata: self
+                .config
+                .proxy
+                .create_proxy_with_nonce(&self.initializer, self.salt_nonce()),
         }
     }
 }
@@ -95,25 +88,29 @@ impl Safe {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config;
     use hex_literal::hex;
 
     #[test]
     fn transaction() {
-        let mut safe = Safe::new(
-            Contracts {
-                proxy_factory: address!("1111111111111111111111111111111111111111"),
-                proxy_init_code: vec![],
-                singleton: address!("2222222222222222222222222222222222222222"),
-                setup: None,
-                fallback_handler: address!("3333333333333333333333333333333333333333"),
+        let mut safe = Safe::new(Configuration {
+            proxy: config::Proxy {
+                factory: address!(nz "1111111111111111111111111111111111111111"),
+                init_code: vec![],
+                singleton: address!(nz "2222222222222222222222222222222222222222"),
             },
-            vec![
-                address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-                address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
-                address!("cccccccccccccccccccccccccccccccccccccccc"),
-            ],
-            2,
-        );
+            account: config::Account {
+                owners: vec![
+                    address!(nz "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                    address!(nz "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+                    address!(nz "cccccccccccccccccccccccccccccccccccccccc"),
+                ],
+                threshold: 2,
+                setup: None,
+                fallback_handler: None,
+                identifier: None,
+            },
+        });
         safe.update_salt_nonce(|nonce| nonce.fill(0xee));
 
         assert_eq!(
@@ -130,8 +127,8 @@ mod tests {
                      0000010000000000000000000000000000000000000000000000000000000000
                      0000000200000000000000000000000000000000000000000000000000000000
                      0000000000000000000000000000000000000000000000000000000000000000
-                     0000018000000000000000000000000033333333333333333333333333333333
-                     3333333300000000000000000000000000000000000000000000000000000000
+                     0000018000000000000000000000000000000000000000000000000000000000
+                     0000000000000000000000000000000000000000000000000000000000000000
                      0000000000000000000000000000000000000000000000000000000000000000
                      0000000000000000000000000000000000000000000000000000000000000000
                      0000000000000000000000000000000000000000000000000000000000000000
