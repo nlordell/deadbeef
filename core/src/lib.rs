@@ -1,11 +1,13 @@
 #[macro_use]
 mod address;
+pub mod config;
 mod create2;
 mod safe;
 
 pub use self::{
-    address::Address,
-    safe::{Contracts, Safe, Transaction},
+    address::{Address, NonZeroAddress},
+    config::Configuration,
+    safe::{Safe, Transaction},
 };
 pub use hex_literal::hex;
 use rand::{rngs::SmallRng, Rng as _, SeedableRng as _};

@@ -1,31 +1,15 @@
 //! Module containing Safe
 
-use crate::{address::Address, create2::Create2};
-use hex_literal::hex;
+use crate::{address::Address, create2::Create2, Configuration};
 use tiny_keccak::{Hasher as _, Keccak};
 
 /// Safe deployment for computing deterministic addresses.
 #[derive(Clone)]
 pub struct Safe {
-    contracts: Contracts,
-    owners: Vec<Address>,
-    threshold: usize,
+    config: Configuration,
     initializer: Vec<u8>,
     salt: [u8; 64],
     create2: Create2,
-}
-
-/// Safe contract data on a given chain.
-#[derive(Clone)]
-pub struct Contracts {
-    /// The address of the `SafeProxyFactory` contract.
-    pub proxy_factory: Address,
-    /// The `SafeProxy` init code.
-    pub proxy_init_code: Vec<u8>,
-    /// The `Safe` singleton address.
-    pub singleton: Address,
-    /// The default `CompatabilityFallbackHandler` address to use.
-    pub fallback_handler: Address,
 }
 
 /// Safe deployment transaction information.
@@ -38,9 +22,9 @@ pub struct Transaction {
 }
 
 impl Safe {
-    /// Creates a new safe from deployment parameters.
-    pub fn new(contracts: Contracts, owners: Vec<Address>, threshold: usize) -> Self {
-        let initializer = contracts.initializer(&owners, threshold);
+    /// Creates a new safe from spcified configuration.
+    pub fn new(config: Configuration) -> Self {
+        let initializer = config.account.initializer();
 
         let mut salt = [0_u8; 64];
         let mut hasher = Keccak::v256();
@@ -48,18 +32,16 @@ impl Safe {
         hasher.finalize(&mut salt[0..32]);
 
         let mut create2 = Create2::new(
-            contracts.proxy_factory,
+            config.proxy.factory.get(),
             Default::default(),
-            contracts.proxy_init_code_digest(),
+            config.proxy.init_code_hash(),
         );
         let mut hasher = Keccak::v256();
         hasher.update(&salt);
         hasher.finalize(create2.salt_mut());
 
         Self {
-            contracts,
-            owners,
-            threshold,
+            config,
             initializer,
             salt,
             create2,
@@ -82,8 +64,8 @@ impl Safe {
     }
 
     /// Updates the salt nonce and recomputes the `CREATE2` salt.
-    pub fn update_salt_nonce(&mut self, f: impl FnOnce(&mut [u8])) {
-        let salt_nonce = unsafe { self.salt.get_unchecked_mut(32..64) };
+    pub fn update_salt_nonce(&mut self, f: impl FnOnce(&mut [u8; 32])) {
+        let salt_nonce = unsafe { &mut *self.salt.get_unchecked_mut(32..).as_mut_ptr().cast() };
         f(salt_nonce);
 
         let mut hasher = Keccak::v256();
@@ -93,145 +75,42 @@ impl Safe {
 
     /// Returns the transaction information for the current safe deployment.
     pub fn transaction(&self) -> Transaction {
-        let calldata =
-            self.contracts
-                .proxy_calldata(&self.owners, self.threshold, self.salt_nonce());
         Transaction {
-            to: self.contracts.proxy_factory,
-            calldata,
+            to: self.config.proxy.factory.get(),
+            calldata: self
+                .config
+                .proxy
+                .create_proxy_with_nonce(&self.initializer, self.salt_nonce()),
         }
-    }
-}
-
-impl Contracts {
-    /// Returns the proxy init code digest.
-    pub fn proxy_init_code_digest(&self) -> [u8; 32] {
-        let mut output = [0_u8; 32];
-        let mut hasher = Keccak::v256();
-        hasher.update(&self.proxy_init_code);
-        hasher.update(&abi::addr(self.singleton));
-        hasher.finalize(&mut output);
-        output
-    }
-
-    /// Computes the initializer calldata for the specified Safe parameters.
-    pub fn initializer(&self, owners: &[Address], threshold: usize) -> Vec<u8> {
-        use abi::*;
-
-        let mut buffer = Vec::new();
-        buffer.extend_from_slice(&hex!("b63e800d"));
-        buffer.extend_from_slice(&num(0x100)); // owners.offset
-        buffer.extend_from_slice(&num(threshold));
-        buffer.extend_from_slice(&addr(Address::zero())); // to
-        buffer.extend_from_slice(&num(0x120 + 0x20 * owners.len())); // data.offset
-        buffer.extend_from_slice(&addr(self.fallback_handler));
-        buffer.extend_from_slice(&addr(Address::zero())); // paymentToken
-        buffer.extend_from_slice(&num(0)); // payment
-        buffer.extend_from_slice(&addr(Address::zero())); // paymentReceiver
-        buffer.extend_from_slice(&num(owners.len())); // owners.length
-        for owner in owners {
-            buffer.extend_from_slice(&addr(*owner)); // owners.length
-        }
-        buffer.extend_from_slice(&num(0)); // data.length
-        buffer
-    }
-
-    /// Returns the calldata required for the transaction to deploy the proxy.
-    pub fn proxy_calldata(
-        &self,
-        owners: &[Address],
-        threshold: usize,
-        salt_nonce: [u8; 32],
-    ) -> Vec<u8> {
-        use abi::*;
-
-        let initializer = self.initializer(owners, threshold);
-        let mut buffer = Vec::new();
-        buffer.extend_from_slice(&hex!("1688f0b9"));
-        buffer.extend_from_slice(&addr(self.singleton));
-        buffer.extend_from_slice(&num(0x60)); // initializer.offset
-        buffer.extend_from_slice(&salt_nonce);
-        buffer.extend_from_slice(&num(initializer.len()));
-        buffer.extend_from_slice(&initializer);
-        buffer.extend_from_slice(&[0_u8; 28]); // padding
-        buffer
-    }
-}
-
-/// Poor man's ABI encode.
-mod abi {
-    use crate::address::Address;
-    use std::mem;
-
-    pub fn num(a: usize) -> [u8; 32] {
-        let mut b = [0_u8; 32];
-        b[(32 - mem::size_of::<usize>())..].copy_from_slice(&a.to_be_bytes());
-        b
-    }
-    pub fn addr(a: Address) -> [u8; 32] {
-        let mut b = [0_u8; 32];
-        b[12..].copy_from_slice(&a.0);
-        b
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn initializer_bytes() {
-        let contracts = Contracts {
-            proxy_factory: address!("1111111111111111111111111111111111111111"),
-            proxy_init_code: vec![],
-            singleton: address!("2222222222222222222222222222222222222222"),
-            fallback_handler: address!("3333333333333333333333333333333333333333"),
-        };
-
-        assert_eq!(
-            &contracts.initializer(
-                &[
-                    address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-                    address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
-                    address!("cccccccccccccccccccccccccccccccccccccccc"),
-                ],
-                2,
-            ),
-            &hex!(
-                "b63e800d
-                 0000000000000000000000000000000000000000000000000000000000000100
-                 0000000000000000000000000000000000000000000000000000000000000002
-                 0000000000000000000000000000000000000000000000000000000000000000
-                 0000000000000000000000000000000000000000000000000000000000000180
-                 0000000000000000000000003333333333333333333333333333333333333333
-                 0000000000000000000000000000000000000000000000000000000000000000
-                 0000000000000000000000000000000000000000000000000000000000000000
-                 0000000000000000000000000000000000000000000000000000000000000000
-                 0000000000000000000000000000000000000000000000000000000000000003
-                 000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-                 000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-                 000000000000000000000000cccccccccccccccccccccccccccccccccccccccc
-                 0000000000000000000000000000000000000000000000000000000000000000"
-            ),
-        );
-    }
+    use crate::config;
+    use hex_literal::hex;
 
     #[test]
     fn transaction() {
-        let mut safe = Safe::new(
-            Contracts {
-                proxy_factory: address!("1111111111111111111111111111111111111111"),
-                proxy_init_code: vec![],
-                singleton: address!("2222222222222222222222222222222222222222"),
-                fallback_handler: address!("3333333333333333333333333333333333333333"),
+        let mut safe = Safe::new(Configuration {
+            proxy: config::Proxy {
+                factory: address!(nz "1111111111111111111111111111111111111111"),
+                init_code: vec![],
+                singleton: address!(nz "2222222222222222222222222222222222222222"),
             },
-            vec![
-                address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-                address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
-                address!("cccccccccccccccccccccccccccccccccccccccc"),
-            ],
-            2,
-        );
+            account: config::Account {
+                owners: vec![
+                    address!(nz "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                    address!(nz "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+                    address!(nz "cccccccccccccccccccccccccccccccccccccccc"),
+                ],
+                threshold: 2,
+                setup: None,
+                fallback_handler: None,
+                identifier: None,
+            },
+        });
         safe.update_salt_nonce(|nonce| nonce.fill(0xee));
 
         assert_eq!(
@@ -248,8 +127,8 @@ mod tests {
                      0000010000000000000000000000000000000000000000000000000000000000
                      0000000200000000000000000000000000000000000000000000000000000000
                      0000000000000000000000000000000000000000000000000000000000000000
-                     0000018000000000000000000000000033333333333333333333333333333333
-                     3333333300000000000000000000000000000000000000000000000000000000
+                     0000018000000000000000000000000000000000000000000000000000000000
+                     0000000000000000000000000000000000000000000000000000000000000000
                      0000000000000000000000000000000000000000000000000000000000000000
                      0000000000000000000000000000000000000000000000000000000000000000
                      0000000000000000000000000000000000000000000000000000000000000000

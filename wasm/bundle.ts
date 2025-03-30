@@ -8,9 +8,9 @@
  */
 
 // TODO(nlordell): Figure out why this doesn't work...
-// import { build } from "https://deno.land/x/esbuild@v0.18.10/mod.js";
+// import { build } from "https://deno.land/x/esbuild@v0.25.2/mod.js";
 
-import { build } from "npm:esbuild@0.18.10";
+import { build } from "npm:esbuild@0.25.2";
 
 await build({
   entryPoints: ["lib/worker.js"],
@@ -28,13 +28,12 @@ const workerSrc = await Deno.readTextFile("dist/worker.js");
 const indexSrc = await Deno.readTextFile("lib/index.js");
 
 const bundle = `
-const workerSource = new Blob([${JSON.stringify(workerSrc)}]);
+const workerSource = new Blob([${
+  JSON.stringify(workerSrc)
+}], { type: "text/javascript" });
 const workerUrl = URL.createObjectURL(workerSource);
 
-${
-  indexSrc
-    .replace('new URL("./worker.js", import.meta.url)', "workerUrl")
-}
+${indexSrc.replace('new URL("./worker.js", import.meta.url)', "workerUrl")}
 `;
 
 await Deno.writeTextFile("dist/index.js", `${bundle.trim()}\n`);

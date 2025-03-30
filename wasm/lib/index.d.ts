@@ -2,32 +2,34 @@ export type Address = string;
 export type Bytes = string;
 
 /**
- * Safe parameters for searching for vanity addresses.
+ * Safe configuration for searching for vanity addresses.
  */
-export interface Safe {
-    proxyFactory: Address;
-    proxyInitCode: Bytes;
-    singleton: Address;
-    fallbackHandler: Address;
-    owners: Address[];
-    threshold: number;
+export interface Configuration {
+  proxyFactory: Address;
+  proxyInitCode: Bytes;
+  singleton: Address;
+  owners: Address[];
+  threshold: number;
+  safeToL2Setup?: Address;
+  l2Singleton?: Address;
+  fallbackHandler?: Address;
 }
 
 /**
  * Vanity Safe creation data.
  */
 export interface Creation {
-    creationAddress: Address;
-    saltNonce: Bytes;
-    transaction: Transaction;
+  creationAddress: Address;
+  saltNonce: Bytes;
+  transaction: Transaction;
 }
 
 /**
  * Vanity Safe transaction data.
  */
 export interface Transaction {
-    to: Address;
-    calldata: Bytes;
+  to: Address;
+  calldata: Bytes;
 }
 
 /**
@@ -35,7 +37,7 @@ export interface Transaction {
  * parameters and prefix.
  */
 export declare class DeadbeefWorker {
-    constructor(safe: Safe, prefix: Bytes);
-    wait(): Promise<Creation>;
-    cancel(err?: Error): void;
+  constructor(config: Configuration, prefix: Bytes);
+  wait(): Promise<Creation>;
+  cancel(err?: Error): void;
 }

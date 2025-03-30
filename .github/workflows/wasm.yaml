@@ -2,9 +2,9 @@ name: WASM
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,23 +12,23 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Requirements
-      run: |
-        sudo apt-get update && sudo apt-get install binaryen
-        curl -fsSL https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
-        curl -fsSL https://deno.land/x/install/install.sh | sh
-        echo "${HOME}/.deno/bin" >> "${GITHUB_PATH}"
-    - name: Versions
-      run: |
-        wasm-opt --version
-        wasm-pack --version
-        deno --version
-    - name: Tests
-      run: |
-        cd wasm
-        make test
+      - uses: actions/checkout@v4
+      - name: Requirements
+        run: |
+          sudo apt-get update && sudo apt-get install binaryen
+          curl -fsSL https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+          curl -fsSL https://deno.land/x/install/install.sh | sh
+          echo "${HOME}/.deno/bin" >> "${GITHUB_PATH}"
+      - name: Versions
+        run: |
+          wasm-opt --version
+          wasm-pack --version
+          deno --version
+      - name: Tests
+        run: |
+          cd wasm
+          # For some reason, `wasm-opt` is causing issues in CI...
+          make test WASM_PACK_FLAGS=--no-opt

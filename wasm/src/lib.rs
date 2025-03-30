@@ -1,4 +1,4 @@
-use deadbeef_core::{Contracts, Safe};
+use deadbeef_core::{config, Configuration, Safe};
 use hex::FromHexError;
 use std::error::Error;
 use wasm_bindgen::prelude::*;
@@ -8,17 +8,48 @@ use wee_alloc::WeeAlloc;
 static ALLOC: WeeAlloc = WeeAlloc::INIT;
 
 mod js {
-    use serde::{Deserialize, Serialize};
+    use serde::{de, Deserialize, Serialize};
 
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
-    pub struct Safe {
+    pub struct Configuration {
         pub proxy_factory: String,
         pub proxy_init_code: String,
         pub singleton: String,
-        pub fallback_handler: String,
         pub owners: Vec<String>,
         pub threshold: usize,
+        #[serde(deserialize_with = "deserialize_setup", flatten)]
+        pub setup: Option<Setup>,
+        #[serde(default)]
+        pub fallback_handler: Option<String>,
+    }
+
+    pub struct Setup {
+        pub safe_to_l2_setup: String,
+        pub l2_singleton: String,
+    }
+
+    fn deserialize_setup<'de, D>(deserializer: D) -> Result<Option<Setup>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Inner {
+            safe_to_l2_setup: Option<String>,
+            l2_singleton: Option<String>,
+        }
+
+        let setup = Inner::deserialize(deserializer)?;
+        match (setup.safe_to_l2_setup, setup.l2_singleton) {
+            (Some(safe_to_l2_setup), Some(l2_singleton)) => Ok(Some(Setup {
+                safe_to_l2_setup,
+                l2_singleton,
+            })),
+            (None, None) => Ok(None),
+            (None, _) => Err(serde::de::Error::missing_field("safeToL2Setup")),
+            (_, None) => Err(serde::de::Error::missing_field("l2Singleton")),
+        }
     }
 
     #[derive(Serialize)]
@@ -49,28 +80,45 @@ pub fn search(safe: JsValue, prefix: &str) -> Result<JsValue, String> {
 }
 
 fn inner(safe: JsValue, prefix: &str) -> Result<JsValue, Box<dyn Error>> {
-    let safe = serde_wasm_bindgen::from_value::<js::Safe>(safe)?;
-
-    let contracts = Contracts {
-        proxy_factory: safe.proxy_factory.parse()?,
-        proxy_init_code: hex_decode(&safe.proxy_init_code)?,
-        singleton: safe.singleton.parse()?,
-        fallback_handler: safe.fallback_handler.parse()?,
-    };
-
-    let owners = safe
-        .owners
-        .iter()
-        .map(|owner| owner.parse())
-        .collect::<Result<Vec<_>, _>>()?;
-    let threshold = safe.threshold;
+    let config = serde_wasm_bindgen::from_value::<js::Configuration>(safe)?;
     let prefix = hex_decode(prefix)?;
 
-    let mut safe = Safe::new(contracts, owners, threshold);
+    let mut safe = Safe::new(Configuration {
+        proxy: config::Proxy {
+            factory: config.proxy_factory.parse()?,
+            init_code: hex_decode(&config.proxy_init_code)?,
+            singleton: config.singleton.parse()?,
+        },
+        account: config::Account {
+            owners: config
+                .owners
+                .iter()
+                .map(|owner| owner.parse())
+                .collect::<Result<Vec<_>, _>>()?,
+            threshold: config.threshold,
+            setup: config
+                .setup
+                .as_ref()
+                .map(|setup| {
+                    setup.safe_to_l2_setup.parse().and_then(|safe_to_l2_setup| {
+                        Ok(config::SafeToL2Setup {
+                            address: safe_to_l2_setup,
+                            l2_singleton: setup.l2_singleton.parse()?,
+                        })
+                    })
+                })
+                .transpose()?,
+            fallback_handler: config
+                .fallback_handler
+                .map(|fallback_handler| fallback_handler.parse())
+                .transpose()?,
+            identifier: None,
+        },
+    });
+
     deadbeef_core::search(&mut safe, &prefix);
 
     let transaction = safe.transaction();
-
     let creation = serde_wasm_bindgen::to_value(&js::Creation {
         creation_address: safe.creation_address().to_string(),
         salt_nonce: hex_encode(&safe.salt_nonce()),
