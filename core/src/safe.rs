@@ -8,8 +8,6 @@ use tiny_keccak::{Hasher as _, Keccak};
 #[derive(Clone)]
 pub struct Safe {
     contracts: Contracts,
-    owners: Vec<Address>,
-    threshold: usize,
     initializer: Vec<u8>,
     salt: [u8; 64],
     create2: Create2,
@@ -24,8 +22,20 @@ pub struct Contracts {
     pub proxy_init_code: Vec<u8>,
     /// The `Safe` singleton address.
     pub singleton: Address,
-    /// The default `CompatabilityFallbackHandler` address to use.
+    /// The optional `SafeToL2Setup` setup to use.
+    pub setup: Option<SafeToL2Setup>,
+    /// The fallback handler address to use (for example, the
+    /// `CompatibilityFallbackHandler`).
     pub fallback_handler: Address,
+}
+
+/// Safe multi-chain setup.
+#[derive(Clone)]
+pub struct SafeToL2Setup {
+    /// The addres of the setup contract.
+    pub address: Address,
+    /// The `SafeL2` singleton for the setup.
+    pub singleton_l2: Address,
 }
 
 /// Safe deployment transaction information.
@@ -58,8 +68,6 @@ impl Safe {
 
         Self {
             contracts,
-            owners,
-            threshold,
             initializer,
             salt,
             create2,
@@ -93,9 +101,9 @@ impl Safe {
 
     /// Returns the transaction information for the current safe deployment.
     pub fn transaction(&self) -> Transaction {
-        let calldata =
-            self.contracts
-                .proxy_calldata(&self.owners, self.threshold, self.salt_nonce());
+        let calldata = self
+            .contracts
+            .create_proxy_with_nonce(&self.initializer, self.salt_nonce());
         Transaction {
             to: self.contracts.proxy_factory,
             calldata,
@@ -115,14 +123,24 @@ impl Contracts {
     }
 
     /// Computes the initializer calldata for the specified Safe parameters.
-    pub fn initializer(&self, owners: &[Address], threshold: usize) -> Vec<u8> {
+    fn initializer(&self, owners: &[Address], threshold: usize) -> Vec<u8> {
         use abi::*;
+
+        let (to, data) = match &self.setup {
+            Some(setup) => {
+                let mut buffer = Vec::new();
+                buffer.extend_from_slice(&hex!("fe51f643"));
+                buffer.extend_from_slice(&addr(setup.singleton_l2));
+                (setup.address, buffer)
+            }
+            None => (Address::zero(), Vec::new()),
+        };
 
         let mut buffer = Vec::new();
         buffer.extend_from_slice(&hex!("b63e800d"));
         buffer.extend_from_slice(&num(0x100)); // owners.offset
         buffer.extend_from_slice(&num(threshold));
-        buffer.extend_from_slice(&addr(Address::zero())); // to
+        buffer.extend_from_slice(&addr(to));
         buffer.extend_from_slice(&num(0x120 + 0x20 * owners.len())); // data.offset
         buffer.extend_from_slice(&addr(self.fallback_handler));
         buffer.extend_from_slice(&addr(Address::zero())); // paymentToken
@@ -130,22 +148,18 @@ impl Contracts {
         buffer.extend_from_slice(&addr(Address::zero())); // paymentReceiver
         buffer.extend_from_slice(&num(owners.len())); // owners.length
         for owner in owners {
-            buffer.extend_from_slice(&addr(*owner)); // owners.length
+            buffer.extend_from_slice(&addr(*owner));
         }
-        buffer.extend_from_slice(&num(0)); // data.length
+        buffer.extend_from_slice(&num(data.len()));
+        buffer.extend_from_slice(&padded(data));
         buffer
     }
 
-    /// Returns the calldata required for the transaction to deploy the proxy.
-    pub fn proxy_calldata(
-        &self,
-        owners: &[Address],
-        threshold: usize,
-        salt_nonce: [u8; 32],
-    ) -> Vec<u8> {
+    /// Returns the calldata for the `createProxyWithNonce` call on the proxy
+    /// factory.
+    fn create_proxy_with_nonce(&self, initializer: &[u8], salt_nonce: [u8; 32]) -> Vec<u8> {
         use abi::*;
 
-        let initializer = self.initializer(owners, threshold);
         let mut buffer = Vec::new();
         buffer.extend_from_slice(&hex!("1688f0b9"));
         buffer.extend_from_slice(&addr(self.singleton));
@@ -173,11 +187,18 @@ mod abi {
         b[12..].copy_from_slice(&a.0);
         b
     }
+    pub fn padded(mut d: Vec<u8>) -> Vec<u8> {
+        let b = [0_u8; 32];
+        let l = (32 - d.len() % 32) % 32;
+        d.extend_from_slice(&b[..l]);
+        d
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hex_literal::hex;
 
     #[test]
     fn initializer_bytes() {
@@ -185,6 +206,7 @@ mod tests {
             proxy_factory: address!("1111111111111111111111111111111111111111"),
             proxy_init_code: vec![],
             singleton: address!("2222222222222222222222222222222222222222"),
+            setup: None,
             fallback_handler: address!("3333333333333333333333333333333333333333"),
         };
 
@@ -217,12 +239,57 @@ mod tests {
     }
 
     #[test]
+    fn safe_to_l2_setup() {
+        let contracts = Contracts {
+            proxy_factory: address!("1111111111111111111111111111111111111111"),
+            proxy_init_code: vec![],
+            singleton: address!("2222222222222222222222222222222222222222"),
+            setup: Some(SafeToL2Setup {
+                address: address!("3333333333333333333333333333333333333333"),
+                singleton_l2: address!("4444444444444444444444444444444444444444"),
+            }),
+            fallback_handler: address!("5555555555555555555555555555555555555555"),
+        };
+
+        assert_eq!(
+            &contracts.initializer(
+                &[
+                    address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                    address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+                    address!("cccccccccccccccccccccccccccccccccccccccc"),
+                ],
+                2,
+            ),
+            &hex!(
+                "b63e800d
+                 0000000000000000000000000000000000000000000000000000000000000100
+                 0000000000000000000000000000000000000000000000000000000000000002
+                 0000000000000000000000003333333333333333333333333333333333333333
+                 0000000000000000000000000000000000000000000000000000000000000180
+                 0000000000000000000000005555555555555555555555555555555555555555
+                 0000000000000000000000000000000000000000000000000000000000000000
+                 0000000000000000000000000000000000000000000000000000000000000000
+                 0000000000000000000000000000000000000000000000000000000000000000
+                 0000000000000000000000000000000000000000000000000000000000000003
+                 000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                 000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+                 000000000000000000000000cccccccccccccccccccccccccccccccccccccccc
+                 0000000000000000000000000000000000000000000000000000000000000024
+                 fe51f643
+                 0000000000000000000000004444444444444444444444444444444444444444
+                         00000000000000000000000000000000000000000000000000000000"
+            ),
+        );
+    }
+
+    #[test]
     fn transaction() {
         let mut safe = Safe::new(
             Contracts {
                 proxy_factory: address!("1111111111111111111111111111111111111111"),
                 proxy_init_code: vec![],
                 singleton: address!("2222222222222222222222222222222222222222"),
+                setup: None,
                 fallback_handler: address!("3333333333333333333333333333333333333333"),
             },
             vec![

@@ -5,7 +5,7 @@ mod safe;
 
 pub use self::{
     address::Address,
-    safe::{Contracts, Safe, Transaction},
+    safe::{Contracts, Safe, SafeToL2Setup, Transaction},
 };
 pub use hex_literal::hex;
 use rand::{rngs::SmallRng, Rng as _, SeedableRng as _};
