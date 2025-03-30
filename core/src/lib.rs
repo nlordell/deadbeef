@@ -8,7 +8,7 @@ mod safe;
 
 pub use self::{
     address::Address,
-    config::{Parameters, SafeToL2Setup},
+    config::{Account, Configuration, Proxy, SafeToL2Setup},
     safe::{Safe, Transaction},
 };
 pub use hex_literal::hex;
