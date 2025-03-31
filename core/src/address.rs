@@ -1,11 +1,10 @@
+use crate::keccak;
 use hex::FromHexError;
 use std::{
     error::Error,
     fmt::{self, Debug, Display, Formatter},
     str::{self, FromStr},
 };
-
-use crate::keccak;
 
 /// An Ethereum public address.
 #[derive(Copy, Clone, Default, Eq, PartialEq)]
