@@ -4,7 +4,8 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
     str::{self, FromStr},
 };
-use tiny_keccak::{Hasher as _, Keccak};
+
+use crate::keccak;
 
 /// An Ethereum public address.
 #[derive(Copy, Clone, Default, Eq, PartialEq)]
@@ -51,14 +52,7 @@ impl Display for Address {
         let addr = &mut buf[2..];
         hex::encode_to_slice(self.0.as_slice(), addr).expect("error decoding hex");
 
-        let digest = {
-            let mut output = [0_u8; 32];
-            let mut hasher = Keccak::v256();
-            hasher.update(addr);
-            hasher.finalize(&mut output);
-            output
-        };
-
+        let digest = keccak::v256(addr);
         for i in 0..addr.len() {
             let byte = digest[i / 2];
             let nibble = 0xf & if i % 2 == 0 { byte >> 4 } else { byte };

@@ -1,7 +1,6 @@
 //! Module containing Safe
 
-use crate::{address::Address, create2::Create2, Configuration};
-use tiny_keccak::{Hasher as _, Keccak};
+use crate::{address::Address, create2::Create2, keccak, Configuration};
 
 /// Safe deployment for computing deterministic addresses.
 #[derive(Clone)]
@@ -27,18 +26,14 @@ impl Safe {
         let initializer = config.account.initializer();
 
         let mut salt = [0_u8; 64];
-        let mut hasher = Keccak::v256();
-        hasher.update(&initializer);
-        hasher.finalize(&mut salt[0..32]);
+        salt[0..32].copy_from_slice(&keccak::v256(&initializer));
 
         let mut create2 = Create2::new(
             config.proxy.factory.get(),
             Default::default(),
             config.proxy.init_code_hash(),
         );
-        let mut hasher = Keccak::v256();
-        hasher.update(&salt);
-        hasher.finalize(create2.salt_mut());
+        *create2.salt_mut() = keccak::v256(&salt);
 
         Self {
             config,
@@ -51,6 +46,11 @@ impl Safe {
     /// Returns the creation address for the Safe.
     pub fn creation_address(&self) -> Address {
         self.create2.creation_address()
+    }
+
+    /// Returns whether the Safe's address starts with the specified prefix.
+    pub fn matches(&self, prefix: &[u8]) -> bool {
+        self.creation_address().0.starts_with(prefix)
     }
 
     /// Returns the current salt nonce value for the Safe deployment.
@@ -67,10 +67,7 @@ impl Safe {
     pub fn update_salt_nonce(&mut self, f: impl FnOnce(&mut [u8; 32])) {
         let salt_nonce = unsafe { &mut *self.salt.get_unchecked_mut(32..).as_mut_ptr().cast() };
         f(salt_nonce);
-
-        let mut hasher = Keccak::v256();
-        hasher.update(&self.salt);
-        hasher.finalize(self.create2.salt_mut());
+        *self.create2.salt_mut() = keccak::v256(&self.salt);
     }
 
     /// Returns the transaction information for the current safe deployment.
