@@ -1,6 +1,8 @@
-use crate::address::{Address, NonZeroAddress};
+use crate::{
+    address::{Address, NonZeroAddress},
+    keccak,
+};
 use hex_literal::hex;
-use tiny_keccak::{Hasher as _, Keccak};
 
 /// The Safe smart account creation configuration.
 #[derive(Clone)]
@@ -25,12 +27,7 @@ pub struct Proxy {
 impl Proxy {
     /// Returns the proxy init code digest.
     pub fn init_code_hash(&self) -> [u8; 32] {
-        let mut output = [0_u8; 32];
-        let mut hasher = Keccak::v256();
-        hasher.update(&self.init_code);
-        hasher.update(&abi::addr(self.singleton.get()));
-        hasher.finalize(&mut output);
-        output
+        keccak::v256_chunked(&[&self.init_code, &abi::addr(self.singleton.get())])
     }
 
     /// Returns the calldata for the `createProxyWithNonce` call on the proxy

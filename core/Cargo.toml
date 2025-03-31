@@ -9,4 +9,4 @@ license = "GPL-3.0-or-later"
 hex = "0.4"
 hex-literal = "1"
 rand = { version = "0.9", features = ["small_rng"] }
-tiny-keccak = { version = "2", features = ["keccak"] }
+sha3 = "0.10"

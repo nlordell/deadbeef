@@ -1,7 +1,6 @@
 //! Module implementing `CREATE2` deterministic address computation logic.
 
-use crate::address::Address;
-use tiny_keccak::{Hasher as _, Keccak};
+use crate::{address::Address, keccak};
 
 /// `CREATE2` parameters.
 #[derive(Clone, Debug)]
@@ -34,11 +33,8 @@ impl Create2 {
 
     /// Returns the deterministic address for the `CREATE2` parameters.
     pub fn creation_address(&self) -> Address {
-        let mut buffer = [0_u8; 32];
-        let mut hasher = Keccak::v256();
-        hasher.update(&self.0);
-        hasher.finalize(&mut buffer);
-        Address(unsafe { *buffer.get_unchecked(12..32).as_ptr().cast() })
+        let digest = keccak::v256(&self.0);
+        Address(unsafe { *digest.get_unchecked(12..32).as_ptr().cast() })
     }
 }
 
